@@ -1,0 +1,17 @@
+export default {
+  av_title: "analysis-v2",
+  av_unit: "",
+  av_noun: "flow",
+  av_tab_home: "home",
+  av_f_name: "name",
+  av_f_path: "macro",
+  av_f_path_hint: "A path under $LILAK_PATH (.mac, .par)",
+  av_f_note: "description",
+  av_need_name: "Give it a name.",
+  av_need_macro: "Give a macro path ending in .mac or .par.",
+  av_open_map: "flow map",
+  av_loading: "Building the graph…",
+  av_reload: "Reload",
+  av_gone: "This flow is no longer in the list.",
+  av_failed: (a0) => `Could not build the graph (${a0}).`,
+}

@@ -1,0 +1,17 @@
+export default {
+  av_title: "analysis-v2",
+  av_unit: "개",
+  av_noun: "flow",
+  av_tab_home: "홈",
+  av_f_name: "이름",
+  av_f_path: "매크로",
+  av_f_path_hint: "$LILAK_PATH 아래의 경로 (.mac, .par)",
+  av_f_note: "설명",
+  av_need_name: "이름을 적어 주세요.",
+  av_need_macro: "매크로 경로를 .mac 이나 .par 로 적어 주세요.",
+  av_open_map: "flow map",
+  av_loading: "그래프를 만드는 중…",
+  av_reload: "다시 읽기",
+  av_gone: "이 flow가 목록에 없습니다.",
+  av_failed: (a0) => `그래프를 만들지 못했습니다 (${a0}).`,
+}

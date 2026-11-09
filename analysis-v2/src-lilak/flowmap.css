@@ -1,0 +1,33 @@
+/* A flow map in rack's terms: square, one row height, one type size, --rk-* colours. */
+.av-view { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--rk-ground); }
+.av-bar { display: flex; align-items: center; gap: 8px; height: var(--rk-row); padding: 0 8px; flex: 0 0 auto;
+  background: var(--rk-panel); border-bottom: 1px solid var(--rk-edge); }
+.av-path { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-mono); color: var(--rk-dim); }
+.av-map { flex: 1 1 auto; min-height: 0; position: relative; }
+.av-say { padding: 10px 12px; color: var(--rk-dim); }
+.av-say.bad { color: var(--danger-text, #b91c1c); white-space: pre-wrap; }
+
+.av-node { width: 232px; background: var(--rk-panel); border: 1px solid var(--rk-edge); color: var(--rk-text);
+  font-size: var(--rk-fs); line-height: 1; }
+.av-node.empty { border-style: dashed; color: var(--rk-mute); }
+.react-flow__node.selected .av-node { border-color: var(--rk-ink); }
+.av-row { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; position: relative; }
+.av-row + .av-row { border-top: 1px solid var(--rk-line); }
+.av-head { background: var(--rk-head); box-shadow: inset 3px 0 0 var(--av-kind, var(--rk-dim)); margin: -1px 0 0; }
+.av-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--rk-ink); }
+.av-tag { flex: 0 0 auto; font-size: var(--fs-tiny); color: var(--rk-dim); }
+.av-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--rk-dim); }
+.av-port { color: var(--rk-dim); }
+.av-pt { position: relative; display: flex; align-items: center; height: 100%; }
+.av-pt.out { margin-left: auto; }
+.av-pt .react-flow__handle-left { left: -8px; }
+.av-pt .react-flow__handle-right { right: -8px; }
+.av-node .react-flow__handle { width: 6px; height: 6px; min-width: 0; min-height: 0; border: 0; border-radius: 0; background: var(--rk-dim); }
+
+.av-region { width: 100%; height: 100%; background: var(--rk-gut); border: 1px solid var(--rk-edge); }
+.av-region-head { display: flex; align-items: center; height: 26px; padding: 0 8px; background: var(--rk-head); color: var(--rk-dim); }
+
+.av-map .react-flow__edge-path { stroke: var(--rk-dim); stroke-width: 1.2; }
+.av-map .av-static .react-flow__edge-path { stroke-dasharray: 6 4; }
+.av-map .react-flow__controls button { border-radius: 0; }

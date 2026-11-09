@@ -1,0 +1,30 @@
+{
+  "kind": "rack",
+  "mode": "managed",
+  "label": "analysis-v2",
+  "start": {
+    "cmd": "sh /app/lilak_analysis/analysis-v2/portal-serve.sh {port}",
+    "cwd": "/app/lilak_analysis/analysis-v2",
+    "env": {}
+  },
+  "health": "/",
+  "entry": "/",
+  "url": null,
+  "token": null,
+  "identity": {
+    "accepts_portal_token": true,
+    "link_by": "email"
+  },
+  "capabilities": {
+    "multi_project": true,
+    "import_export": true,
+    "tags": "analysis"
+  },
+  "entry_project": "flows",
+  "autostart": [
+    "flows"
+  ],
+  "icon": "flow",
+  "color": "#003180",
+  "open": "panel"
+}
