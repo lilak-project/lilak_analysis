@@ -1,0 +1,179 @@
+/* A flow map in rack's terms: square, one row height, one type size, --rk-* colours. */
+.av-view { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--rk-ground); }
+.av-bar { display: flex; align-items: center; gap: 8px; height: var(--rk-row); padding: 0 8px; flex: 0 0 auto;
+  background: var(--rk-panel); border-bottom: 1px solid var(--rk-edge); }
+.av-path { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-mono); color: var(--rk-dim); }
+.av-map { flex: 1 1 auto; min-height: 0; position: relative; }
+.av-say { padding: 10px 12px; color: var(--rk-dim); }
+.av-say.bad { color: var(--dock-danger-text, #b91c1c); white-space: pre-wrap; }
+
+.av-node { width: 232px; background: var(--rk-panel); border: 1px solid var(--rk-edge); color: var(--rk-text);
+  font-size: var(--rk-fs); line-height: 1; }
+.av-node.empty { border-style: dashed; color: var(--rk-mute); }
+.react-flow__node.selected .av-node { border-color: var(--rk-ink); }
+.av-row { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; position: relative; }
+.av-row + .av-row { border-top: 1px solid var(--rk-line); }
+.av-head { background: var(--rk-head); box-shadow: inset 3px 0 0 var(--av-kind, var(--rk-dim)); margin: -1px 0 0; }
+.av-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--rk-ink); }
+.av-tag { flex: 0 0 auto; font-size: var(--fs-tiny); color: var(--rk-dim); }
+.av-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--rk-dim); }
+.av-port { color: var(--rk-dim); }
+.av-pt { position: relative; display: flex; align-items: center; height: 100%; }
+.av-pt.out { margin-left: auto; }
+.av-pt .react-flow__handle-left { left: -8px; }
+.av-pt .react-flow__handle-right { right: -8px; }
+.av-node .react-flow__handle { width: 6px; height: 6px; min-width: 0; min-height: 0; border: 0; border-radius: 0; background: var(--rk-dim); }
+
+.av-region { width: 100%; height: 100%; background: var(--rk-gut); border: 1px solid var(--rk-edge); }
+.av-region-head { display: flex; align-items: center; height: 26px; padding: 0 8px; background: var(--rk-head); color: var(--rk-dim); }
+
+.av-map .react-flow__edge-path { stroke: var(--rk-dim); stroke-width: 1.2; }
+.av-map .av-static .react-flow__edge-path { stroke-dasharray: 6 4; }
+.av-map .react-flow__controls button { border-radius: 0; }
+
+.av-bad { color: var(--dock-danger-text, #b91c1c); max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.av-params { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px;
+  font-size: var(--rk-fs); color: var(--rk-text); }
+.av-params { gap: 0; padding: 0; background: var(--rk-panel); overflow: visible; border-top: 1px solid var(--rk-edge); }
+.av-prow { gap: 4px; padding: 0 6px; }
+.av-prow.on { background: var(--rk-hover); }
+.av-prow.off .av-in { color: var(--rk-mute); text-decoration: line-through; }
+.av-band { background: var(--rk-gut); color: var(--rk-dim); padding: 0 6px; border-top: 1px solid var(--rk-edge); }
+.av-pwrap + .av-pwrap > .av-prow { border-top: 1px solid var(--rk-line); }
+.av-hash { flex: 0 0 auto; width: 44px; font-family: var(--font-mono); color: var(--rk-mute); }
+.av-in { font: inherit; height: 22px; min-width: 0; padding: 0 4px; border: 1px solid transparent; background: transparent; color: var(--rk-text); }
+.av-in:hover { border-color: var(--rk-line); }
+.av-in:focus { outline: none; border-color: var(--rk-ink); background: var(--rk-panel); }
+.av-in.unit { flex: 0 0 26px; text-align: center; font-family: var(--font-mono); }
+.av-in.group { flex: 0 1 200px; color: var(--rk-dim); }
+.av-in.name { flex: 0 1 220px; color: var(--rk-ink); }
+/* The value is what a parameter file is for: its cells wear a tint of their own. */
+.av-in.value { flex: 1 1 240px; font-family: var(--font-mono); color: var(--rk-ink); background: var(--av-value); }
+.av-pane { --av-value: color-mix(in srgb, var(--rk-cite) 55%, transparent); }
+.av-in.grow { flex: 1 1 200px; }
+.av-in.dim { color: var(--rk-dim); }
+.av-raw { width: 100%; resize: vertical; border: 0; border-top: 1px solid var(--rk-edge); padding: 8px 10px; font-family: var(--font-mono);
+  font-size: var(--fs-small); background: var(--rk-panel); color: var(--rk-text); }
+.av-raw:focus { outline: none; }
+
+/* The parameters inside the record's editor: the whole width of the kit's two-column grid. */
+.rl-rec > .rl-fv:has(> span > .av-pane) { grid-column: 1 / -1; padding: 0; display: block; min-width: 0; }
+.rl-rec > .rl-fl:has(+ .rl-fv > span > .av-pane) { display: none; }
+/* The record's address is in the toolbox's file info, as note has it: not above the parameters. */
+.rl-rec:has(.av-pane) > .rl-fl:has(+ .rl-fv > .rl-agentline), .rl-rec:has(.av-pane) > .rl-fv:has(> .rl-agentline) { display: none; }
+/* The kit's own last line (정보 · revert) is the info tab's too. */
+.rl-rec:has(.av-pane) > .rl-fl:nth-last-child(2), .rl-rec:has(.av-pane) > .rl-fv:last-child:not(:has(.av-pane)) { display: none; }
+.av-pane { display: block; font-size: var(--rk-fs); color: var(--rk-text); border: 1px solid var(--rk-edge); background: var(--rk-panel); }
+.av-tools { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 8px; align-items: start; padding: 8px 10px; }
+.av-tools > .rl-btn { justify-self: stretch; text-align: left; }
+.av-tdesc { color: var(--rk-dim); font-size: var(--fs-small); line-height: 1.25; padding-top: 3px; }
+.av-no { flex: 0 0 30px; text-align: right; font-family: var(--font-mono); font-size: var(--fs-tiny); color: var(--rk-mute); }
+.av-cols { color: var(--rk-dim); font-size: var(--fs-tiny); letter-spacing: .04em; text-transform: uppercase; }
+.av-cols .av-in { height: auto; }
+.av-prow { cursor: pointer; }
+.av-prow.rich { height: auto; min-height: 26px; padding-top: 2px; padding-bottom: 2px; align-items: center; }
+.av-full { flex: 0 0 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); color: var(--rk-ink); }
+.av-x { border: 0; background: none; padding: 0 4px; font: inherit; color: var(--rk-mute); cursor: pointer; }
+.av-x:hover { color: var(--rk-ink); }
+.av-doc { font-size: var(--fs-tiny); color: var(--rk-cite-t); }
+.av-pgroup + .av-pgroup { border-top: 1px solid var(--rk-edge); }
+.av-pgroup .av-prow { border-top: 1px solid var(--rk-line); }
+.av-band { gap: 6px; cursor: pointer; user-select: none; }
+.av-band:hover { background: var(--rk-hover); }
+
+.av-veil { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgb(15 23 42 / .35); }
+.av-dialog { width: min(560px, calc(100vw - 32px)); background: var(--rk-panel); border: 1px solid var(--rk-ink); color: var(--rk-text);
+  font-family: var(--font-sans); font-size: var(--rk-fs, 15px); }
+.av-drow { display: flex; align-items: flex-start; gap: 10px; padding: 6px 10px; border-top: 1px solid var(--rk-line); }
+.av-drow > span:first-child { flex: 0 0 72px; line-height: 26px; color: var(--rk-dim); }
+.av-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
+.av-dfoot { justify-content: flex-end; }
+.av-note { padding: 4px 8px; border-top: 1px solid var(--rk-line); color: var(--rk-ink); background: var(--rk-cite); }
+.av-tip { padding: 6px 10px; }
+.rl-rec > .av-tip { grid-column: 1 / -1; border-top: 1px solid var(--rk-line); }
+.av-wrap { overflow-wrap: anywhere; }
+.av-state { flex: 0 0 auto; margin-left: auto; text-transform: none; letter-spacing: 0; color: var(--rk-mute); white-space: nowrap; }
+.av-pane > .av-note { border-top: 0; border-bottom: 1px solid var(--rk-line); }
+/* rich: the value column as wide as the table's, a value a line, + at its right end; a new one goes below. */
+.av-parts { flex: 1 1 240px; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 4px; align-items: center; }
+.av-part { grid-column: 1; display: flex; align-items: center; min-width: 0; }
+.av-part .av-in.value { flex: 1 1 auto; width: 0; min-width: 0; }
+.av-plus { grid-column: 2; grid-row: 1; font-size: var(--fs-medium); line-height: 1; }
+.av-cols .av-parts { display: block; }
+
+/* An empty cell says nothing: it is greyed instead of carrying a hint. */
+.av-prow .av-in.blank, .av-prow .av-in.value.blank { background: color-mix(in srgb, var(--rk-line) 75%, var(--rk-panel)); }
+.av-prow .av-in.blank:focus { background: var(--rk-panel); }
+/* A long value wraps to the screen and its row grows; the rest of the row keeps to the top line. */
+textarea.av-in { display: block; resize: none; overflow: hidden; line-height: 18px; padding: 1px 4px; white-space: pre-wrap; overflow-wrap: break-word; }
+.av-prow { height: auto; min-height: 26px; align-items: flex-start; padding-top: 2px; padding-bottom: 2px; }
+.av-prow > input[type=checkbox] { margin-top: 5px; }
+.av-prow > .av-no, .av-prow > .av-hash, .av-prow > .av-full, .av-prow > .av-x { line-height: 22px; }
+.av-prow.rich { align-items: flex-start; }
+.av-parts, .av-part { align-items: start; }
+.av-cols, .av-band { align-items: center; }
+
+/* The column names stay on top while the parameters scroll under them; the line count
+   floats at the end so the names sit over their own columns. */
+.av-params > .av-cols { position: sticky; top: var(--av-top, 0px); z-index: 3; }
+.rl-edit:has(.av-pane) > .rl-acts { z-index: 4; }
+.av-cols > .av-state { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
+
+/* # and the flag: squares that switch on a click (and the same squares for × and + in rich). */
+.av-sq { flex: 0 0 20px; width: 20px; height: 20px; margin-top: 1px; display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border: 1px solid var(--rk-edge); background: var(--rk-panel); color: var(--rk-mute);
+  font: var(--fs-small)/1 var(--font-mono); cursor: pointer; }
+.av-sq:hover { border-color: var(--rk-ink); color: var(--rk-ink); }
+.av-sq.on { background: var(--rk-ink); border-color: var(--rk-ink); color: var(--rk-panel); }
+.av-sq.some { background: var(--rk-hover); color: var(--rk-ink); }
+.av-sq.av-hd { border-color: transparent; background: none; cursor: default; color: inherit; }
+.av-prow.off .av-sq { text-decoration: none; }
+.av-part .av-sq { margin-left: 4px; }
+.av-plus { align-self: start; }
+/* The name wears a tint of its own, beside the value's. */
+.av-pane { --av-name: color-mix(in srgb, var(--rk-tab) 45%, transparent); }
+.av-in.name, .av-prow .av-full { background: var(--av-name); }
+.av-prow .av-full { padding: 0 4px; }
+/* A group's band: open and folded read apart; the count says which. */
+.av-band.open { background: var(--rk-head); color: var(--rk-ink); }
+.av-band.shut { background: var(--rk-gut); color: var(--rk-mute); }
+.av-band:hover { background: var(--rk-hover); }
+.av-band .av-tag { color: inherit; }
+/* The comment: as many lines as its row already has, "…" past that; clicked, it hangs down whole. */
+.av-in.av-clip { height: auto; align-self: stretch; min-height: 22px; position: relative; padding: 0; cursor: text; }
+.av-clip-text { position: absolute; inset: 0; padding: 1px 4px; line-height: 18px; overflow: hidden;
+  display: -webkit-box; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.av-clip.open { border-color: transparent; }
+textarea.av-clip-edit { position: absolute; left: -1px; right: -1px; top: -1px; z-index: 2; min-height: calc(100% + 2px);
+  background: var(--rk-panel); border-color: var(--rk-ink); box-shadow: 0 6px 16px rgb(0 0 0 / .14); color: var(--rk-text); text-decoration: none; }
+
+/* In the group view the GROUP column's name opens or folds every group at once. */
+.av-gall { text-align: left; cursor: pointer; text-transform: inherit; letter-spacing: inherit; color: inherit; }
+.av-gall:hover { background: var(--rk-hover); color: var(--rk-ink); }
+.av-gall-do { margin-left: 6px; text-transform: none; letter-spacing: 0; color: var(--rk-ink); }
+
+/* The file tool's record: a heading across both columns, then a time a line. */
+.av-thead { grid-column: 1 / -1; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--rk-line);
+  color: var(--rk-dim); font-size: var(--fs-tiny); letter-spacing: .04em; text-transform: uppercase; }
+.av-tspan { grid-column: 1 / -1; }
+
+/* The band's # stands over the rows' #; the GROUP heading keeps its width whichever it says. */
+.av-band { gap: 4px; }
+.av-gall { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* Folding everything takes the scrollbar away; its room stays, so the columns do not move. */
+.rl-edit:has(.av-pane) { scrollbar-gutter: stable; }
+.av-clip.up textarea.av-clip-edit { top: auto; bottom: -1px; box-shadow: 0 -6px 16px rgb(0 0 0 / .14); }
+/* The column names are a heading, not cells: no tint. */
+.av-cols .av-in.name, .av-cols .av-in.value, .av-cols .av-full { background: none; }
+/* Heading buttons and row boxes measured alike, so their columns line up to the pixel. */
+.av-in { box-sizing: border-box; }
+.av-in.av-clip { padding: 0 4px; }
+/* Locked: the squares stay to show their state but do not press; the boxes read, not edit. */
+.av-sq:disabled { cursor: default; }
+.av-sq:disabled:not(.on):hover { border-color: var(--rk-edge); color: var(--rk-mute); }
+.av-pane.locked .av-in:hover { border-color: transparent; }
+.av-pane.locked .av-in { cursor: default; }
+/* LILAK's name conditions (?run==8000), out of the group path into a column of their own. */
+.av-in.cond { flex: 0 1 140px; font-family: var(--font-mono); color: var(--rk-cite-t); }
+.av-cols .av-in.cond { font-family: inherit; color: inherit; }

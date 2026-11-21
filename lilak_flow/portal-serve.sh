@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Portal entry point for the analysis-v2 managed service.
+# Portal entry point for the lilak_flow managed service.
 #
 # Rebuilds the Vite app (src-lilak/ -> dist/) on a start when its sources
 # changed since the last build (stale(), below), then runs the
@@ -9,7 +9,7 @@
 # missing venv/uvicorn falls back to the plain static server (no /api/data,
 # but a stale UI beats a dead service).
 #
-# Invoked by data/analysis-v2/service.json as: sh portal-serve.sh {port}
+# Invoked by data/lilak_flow/service.json as: sh portal-serve.sh {port}
 # The portal also injects PORTAL_PROJECT / PORTAL_PROJECT_DATA into the env.
 set -u
 
@@ -40,11 +40,11 @@ else
 fi
 
 # The shared portal venv has fastapi/uvicorn + lilak_portal_auth.
-VENV_PY="${ANALYSIS_V2_PYTHON:-$STACK/service_manager/.venv/bin/python}"
+VENV_PY="${LILAK_FLOW_PYTHON:-$STACK/service_manager/.venv/bin/python}"
 if [ -x "$VENV_PY" ] && [ -f "$ROOT_DIR/backend/main.py" ]; then
   cd "$ROOT_DIR/backend"
-  ANALYSIS_V2_DATA_DIR="${PORTAL_PROJECT_DATA:-$ROOT_DIR/data}" \
-  ANALYSIS_V2_DIST_DIR="$ROOT_DIR/dist" \
+  LILAK_FLOW_DATA_DIR="${PORTAL_PROJECT_DATA:-$ROOT_DIR/data}" \
+  LILAK_FLOW_DIST_DIR="$ROOT_DIR/dist" \
     exec "$VENV_PY" -m uvicorn main:app --host 127.0.0.1 --port "$PORT"
 fi
 

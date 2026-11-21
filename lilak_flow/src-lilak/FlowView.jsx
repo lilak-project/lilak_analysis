@@ -1,31 +1,36 @@
 import { useCallback, useEffect, useState } from 'react'
-import { PORTAL_BASE, authHeaders } from 'racklist'
 import { tr } from 'lilak-ui/i18n.jsx'
+import { loadGraph } from './api.js'
 import FlowMap from './FlowMap.jsx'
+import SendJob from './SendJob.jsx'
 
-/** One flow's tab: LILAK's graph of the macro its record points at. */
+/** One file's flow board: LILAK's graph of it. */
 export default function FlowView({ flow }) {
   const [got, setGot] = useState(null)
-  const root = flow?.root || 'lilak', path = flow?.path || ''
+  const id = flow?.id
   const load = useCallback(() => {
-    if (!path) return undefined
+    if (!id) return undefined
     let live = true
     setGot(null)
-    fetch(`${PORTAL_BASE}/api/flow/graph?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`, { headers: authHeaders() })
-      .then(async (r) => {
-        const body = await r.json().catch(() => ({}))
-        if (live) setGot(r.ok ? { model: body } : { error: body.detail || r.status })
-      })
+    loadGraph(id).then((model) => ({ model }))
+      .then((d) => live && setGot(d))
       .catch((e) => live && setGot({ error: e.message }))
     return () => { live = false }
-  }, [root, path])
+  }, [id])
   useEffect(() => load(), [load])
+  // Saved in its editor: draw the file as it is now.
+  useEffect(() => {
+    const saved = (e) => { if (e.detail?.id === id) load() }
+    window.addEventListener('lilak_flow:saved', saved)
+    return () => window.removeEventListener('lilak_flow:saved', saved)
+  }, [id, load])
 
   if (!flow) return <div className="av-say">{tr('av_gone')}</div>
   return (
     <div className="av-view">
       <div className="av-bar">
-        <span className="av-path" title={path}>{path}</span>
+        <span className="av-path" title={flow.path}>{flow.path}</span>
+        {flow.flow && <SendJob path={flow.path} />}
         <button type="button" className="rl-btn" onClick={load}>{tr('av_reload')}</button>
       </div>
       {!got && <div className="av-say">{tr('av_loading')}</div>}
