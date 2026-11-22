@@ -16,26 +16,37 @@ const model = {
     saves: [{ branch_name: 'Hit', class_name: 'LKHit' }, { branch_name: 'Hit', class_name: 'LKHit' }],
   } },
 }
-const { nodes, edges } = flowLayout(model)
+const { nodes, edges, width } = flowLayout(model)
 const node = (id) => nodes.find((n) => n.id === id)
 const line = (id) => edges.find((e) => e.id === id)
+const band = (id) => node(id).position.y
 
-// Regions are only made for what exists; an empty input slot still appears.
-assert.deepEqual(nodes.filter((n) => n.type === 'region').map((n) => n.id), ['rg_in', 'rg_tasks', 'rg_out'])
+// Four bands top down: parameters, input, run, output. No detectors here: no Detector System.
+assert.equal(node('detsys'), undefined)
+assert.equal(band('pc'), 0)
+assert.ok(band('pc') < band('input_file') && band('input_file') < band('run') && band('run') < band('output_file'))
+assert.equal(band('in'), band('input_file'), 'an input branch sits beside the input file')
+assert.equal(band('T'), band('run'), 'tasks sit beside run')
+assert.equal(band('out'), band('output_file'))
 assert.equal(node('input_file').data.empty, true)
-assert.equal(node('taskmaster').parentId, 'rg_tasks')
 
-// A task hides its subtitle: head + 3 ports. The next card starts after them.
-assert.equal(node('T').position.y - node('taskmaster').position.y, ROW + 8)
-assert.equal(node('output_file').position.y < node('out').position.y, true, 'the file heads its region')
-assert.equal(node('rg_tasks').style.height, ROW + 8 + ROW + 8 + 4 * ROW + 12)
+// Edge to edge: the next card starts on the last one's border.
+assert.equal(node('T').position.x - node('run').position.x, 231)
+assert.equal(node('out').position.x, 231)
+assert.equal(width, 463)
+// A band is as tall as its tallest card, plus a row for the lines: run's band holds a task (head + 3 ports).
+assert.equal(band('output_file') - band('run'), 4 * ROW + ROW)
 
-// Data lines, one each even when LILAK lists one twice.
+// Only data lines, one each even when LILAK lists one twice.
 assert.equal(line('in:use→T:input').animated, true)
 assert.equal(line('T:register→out:register').animated, true)
+assert.equal(line('T:register→out:register').type, 'step', 'right-angle lines')
 assert.equal(edges.filter((e) => e.source === 'T' && e.target === 'out').length, 1)
-assert.equal(line('run:param→pc:pcin').type, 'bezier')
-assert.equal(line('run:run-inputs→input_file:top').className, 'av-static', 'nothing to read yet')
+assert.equal(edges.length, 2)
 
-assert.deepEqual(flowLayout(null), { nodes: [], edges: [] })
+// Detectors get their system card after the parameters.
+const d = flowLayout({ nodes: [...model.nodes, { id: 'D', kind: 'class', class_kind: 'detector', label: 'D' }] })
+assert.deepEqual(d.nodes.filter((n) => n.position.y === 0).map((n) => n.id), ['pc', 'detsys', 'D'])
+
+assert.deepEqual(flowLayout(null), { nodes: [], edges: [], width: 0 })
 console.log('layout: ok')

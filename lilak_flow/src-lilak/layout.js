@@ -2,21 +2,19 @@
  * LILAK's flow graph → the cards and lines of a flow map. Pure, no React, so
  * `node src-lilak/layout.check.mjs` can hold it to its word.
  *
- *            ┌─────── Run ───────┐        Parameter Container left of Run
- *   [detectors] [inputs] [tasks] [output]
+ * Four bands, top down, like a table; the cards of a band sit edge to edge:
+ *   [Parameter Container][Detector System][detector]…
+ *   [Input File][input branch]…
+ *   [Run][task]…
+ *   [Output File][output branch]…
+ * Lines are only the data: a branch a task reads, a branch a task writes.
  *
  * Everything is measured in rack rows: a card is its rows times ROW high, so no
  * height has to be read back from the page.
  */
 export const ROW = 26
 export const NODE_W = 232
-const GAP = 8, PAD = 12, REGION_GAP = 56, RUN_GAP = 44, PARAM_GAP = 56
-const REGION_TOP = ROW + GAP
-
-const REGIONS = [['rg_det', 'detectors'], ['rg_in', 'inputs'], ['rg_tasks', 'tasks'], ['rg_out', 'output']]
-const HEADS = [['run-detectors', 'detsys'], ['run-inputs', 'input_file'], ['run-tasks', 'taskmaster'], ['run-output', 'output_file']]
-const RANK = { master: 0, inputfile: 0, outputfile: 0, inbranch: 2, detector: 1, task: 1, outbranch: 3 }
-const HEADED = new Set(['master', 'inputfile', 'outputfile'])
+const BAND_GAP = ROW                      // room for the lines between bands
 
 /** A branch is an input of the macro, or something the tasks write. */
 const isInput = (n) => n.kind === 'branch' && !n.persist_disabled && n.style === 'branch_input'
@@ -40,78 +38,43 @@ const rowsOf = (role, n) => 1 + (role !== 'task' && n.subtitle ? 1 : 0) + portRo
 
 export function flowLayout(model) {
   const raw = model?.nodes || []
-  if (!raw.length) return { nodes: [], edges: [] }
-  const members = { rg_det: [], rg_in: [], rg_tasks: [], rg_out: [] }
-  let run = null, param = null
-  for (const n of raw) {
-    const role = roleOf(n)
-    if (role === 'run') run = n
-    else if (role === 'parambox') param = n
-    else if (role === 'detector') members.rg_det.push({ n, role })
-    else if (role === 'task') members.rg_tasks.push({ n, role })
-    else if (role === 'outputfile' || role === 'outbranch') members.rg_out.push({ n, role })
-    else members.rg_in.push({ n, role })
-  }
-  // Heads LILAK's model has no node for: what the lines from Run land on.
-  if (members.rg_det.length) {
-    members.rg_det.unshift({ role: 'master', n: { id: 'detsys', kind: 'class', class_kind: 'detector', label: 'Detector System' } })
-  }
-  if (members.rg_tasks.length) {
-    members.rg_tasks.unshift({ role: 'master', n: { id: 'taskmaster', kind: 'class', class_kind: 'task', label: 'Tasks' } })
-  }
-  if (!members.rg_in.some((m) => m.role === 'inputfile')) {
-    members.rg_in.unshift({ role: 'inputfile', n: { id: 'input_file', kind: 'input_file', label: 'Input File', empty: true } })
-  }
-  for (const g of Object.values(members)) g.sort((a, b) => (RANK[a.role] - RANK[b.role]) || ((a.n.y || 0) - (b.n.y || 0)))
+  if (!raw.length) return { nodes: [], edges: [], width: 0 }
+  const by = { run: [], parambox: [], detector: [], inputfile: [], inbranch: [], task: [], outputfile: [], outbranch: [] }
+  for (const n of raw) by[roleOf(n)].push(n)
+  for (const g of Object.values(by)) g.sort((a, b) => (a.y || 0) - (b.y || 0))
+  const card = (role, n) => ({ role, n })
+  const bands = [
+    [...by.parambox.map((n) => card('parambox', n)),
+      ...(by.detector.length ? [card('master', { id: 'detsys', kind: 'class', class_kind: 'detector', label: 'Detector System' })] : []),
+      ...by.detector.map((n) => card('detector', n))],
+    [...(by.inputfile.length ? by.inputfile.map((n) => card('inputfile', n))
+      : [card('inputfile', { id: 'input_file', kind: 'input_file', label: 'Input File', empty: true })]),
+      ...by.inbranch.map((n) => card('inbranch', n))],
+    [...by.run.map((n) => card('run', n)), ...by.task.map((n) => card('task', n))],
+    [...(by.outputfile.length ? by.outputfile.map((n) => card('outputfile', n))
+      : [card('outputfile', { id: 'output_file', kind: 'output_file', label: 'Output File', empty: true })]),
+      ...by.outbranch.map((n) => card('outbranch', n))],
+  ]
 
   const nodes = [], roles = {}
-  const regionY = (run || param) ? ROW * 2 + RUN_GAP : 0
-  let x = 0, boardH = 0
-  for (const [gid, label] of REGIONS) {
-    const g = members[gid]
-    if (!g.length) continue
-    let y = REGION_TOP
-    const placed = g.map((m) => {
-      const at = y
-      y += rowsOf(m.role, m.n) * ROW + GAP
-      return [m, at]
-    })
-    const w = NODE_W + PAD * 2, h = y - GAP + PAD
-    nodes.push({ id: gid, type: 'region', position: { x, y: regionY }, data: { label }, style: { width: w, height: h },
-      draggable: false, selectable: false, zIndex: -1 })
-    for (const [m, at] of placed) {
-      roles[m.n.id] = m.role
-      nodes.push({ id: m.n.id, type: 'lilak', parentId: gid, extent: 'parent', position: { x: PAD, y: at }, data: { ...m.n, role: m.role } })
+  let y = 0, width = 0
+  for (const band of bands) {
+    if (!band.length) continue
+    let x = 0, h = 0
+    for (const { role, n } of band) {
+      roles[n.id] = role
+      nodes.push({ id: n.id, type: 'lilak', position: { x, y }, data: { ...n, role } })
+      x += NODE_W - 1                     // shared border
+      h = Math.max(h, rowsOf(role, n) * ROW)
     }
-    x += w + REGION_GAP
-    boardH = Math.max(boardH, h)
-  }
-  const width = Math.max(x - REGION_GAP, 0)
-  let runX = 0
-  if (run) {
-    runX = Math.max((width - NODE_W) / 2, param ? NODE_W + PARAM_GAP : 0)
-    roles[run.id] = 'run'
-    nodes.push({ id: run.id, type: 'lilak', position: { x: runX, y: 0 }, data: { ...run, role: 'run' } })
-  }
-  if (param) {
-    roles[param.id] = 'parambox'
-    nodes.push({ id: param.id, type: 'lilak', position: { x: runX - NODE_W - PARAM_GAP, y: 0 }, data: { ...param, role: 'parambox' } })
+    width = Math.max(width, x + 1)
+    y += h + BAND_GAP
   }
 
   const edges = []
   const add = (source, sourceHandle, target, targetHandle, flow) => edges.push({
     id: `${source}:${sourceHandle}→${target}:${targetHandle}`, source, sourceHandle, target, targetHandle,
-    type: 'bezier', animated: flow === 'moving', ...(flow === 'static' ? { className: 'av-static' } : {}) })
-  const inputEmpty = members.rg_in.some((m) => m.role === 'inputfile' && m.n.empty)
-  if (run) {
-    for (const [handle, head] of HEADS) {
-      if (roles[head] != null) add(run.id, handle, head, 'top', head === 'input_file' && inputEmpty ? 'static' : undefined)
-    }
-    if (param) add(run.id, 'param', param.id, 'pcin')
-  }
-  for (const g of Object.values(members)) {
-    g.slice(0, -1).forEach((m, i) => add(m.n.id, HEADED.has(m.role) ? 'chain' : 'chainbot', g[i + 1].n.id, 'chaintop'))
-  }
+    type: 'step', animated: flow === 'moving', ...(flow === 'static' ? { className: 'av-static' } : {}) })
   // Who reads and writes which branch, from each class's own record.
   const branches = new Map(raw.filter((n) => n.kind === 'branch').map((n) => [`${n.branch_name}::${n.branch_class_name}`, n]))
   const seen = new Set()
@@ -130,5 +93,5 @@ export function flowLayout(model) {
     for (const u of cd.uses || []) wire(u, u.action === 'keep' ? 'keep' : 'get')
     for (const s of cd.saves || []) wire(s, s.action === 'keep' ? 'keep' : 'register')
   }
-  return { nodes, edges }
+  return { nodes, edges, width }
 }

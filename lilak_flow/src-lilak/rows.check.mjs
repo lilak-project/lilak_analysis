@@ -53,3 +53,9 @@ console.log('rows: ok')
   assert.deepEqual(g.map((x) => [x.name, x.rows.length]), [['G', 2], ['', 1]], 'grouped without conditions')
   console.log('grouped by plain: ok')
 }
+{
+  const { withConds, condText } = await import('./rows.js')
+  assert.equal(withConds('-run_type', '!run_type'), '?!run_type/-run_type', '?!name, the @- replacement')
+  assert.equal(condText('?!run_type/run_type'), '!run_type')
+  console.log('?!: ok')
+}

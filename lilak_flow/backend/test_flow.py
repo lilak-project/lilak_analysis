@@ -135,3 +135,20 @@ assert main._says([{**held, "unit": "#", "flags": {"include": True}}]) == main._
 assert main._says([{**held, "unit": "#"}]) == main._says([{**held, "enabled": False, "unit": ""}])
 assert main._says([{**held, "unit": "#", "flags": {"include": True}}]) != main._says([{**held, "unit": "#"}])
 print("says ok")
+
+# A `<` line's file, found the way LILAK's AddFile looks.
+inc = root / "tebat/macros"
+(inc / "sub.mac").write_text("A/x  1\n")
+(root / "common").mkdir(exist_ok=True)
+(root / "common" / "style.conf").write_text("s 1\n")
+here = inc
+assert main.find_include(here, "sub.mac")["id"] == "lilak:tebat/macros/sub.mac", "beside the file, openable"
+assert main.find_include(here, "sub")["id"] == "lilak:tebat/macros/sub.mac", "the ending added"
+assert main.find_include(here, "style")["state"] == "found" and "id" not in main.find_include(here, "style"), "from common, not a .mac"
+assert main.find_include(here, "nope.mac")["state"] == "missing"
+assert main.find_include(here, "{ref}.mac")["state"] == "unknown"
+os.environ["FLOW_T"] = "sub"
+assert main.find_include(here, "e{FLOW_T}.mac")["state"] == "found"
+assert main.find_include(here, "e{FLOW_NONE:-sub}")["state"] == "found", "e{NAME:-default}"
+assert main.find_include(here, "./sub.mac")["state"] == "found" and main.find_include(here, "!sub.mac")["state"] == "found"
+print("include ok")

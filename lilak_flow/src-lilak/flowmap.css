@@ -25,9 +25,6 @@
 .av-pt .react-flow__handle-right { right: -8px; }
 .av-node .react-flow__handle { width: 6px; height: 6px; min-width: 0; min-height: 0; border: 0; border-radius: 0; background: var(--rk-dim); }
 
-.av-region { width: 100%; height: 100%; background: var(--rk-gut); border: 1px solid var(--rk-edge); }
-.av-region-head { display: flex; align-items: center; height: 26px; padding: 0 8px; background: var(--rk-head); color: var(--rk-dim); }
-
 .av-map .react-flow__edge-path { stroke: var(--rk-dim); stroke-width: 1.2; }
 .av-map .av-static .react-flow__edge-path { stroke-dasharray: 6 4; }
 .av-map .react-flow__controls button { border-radius: 0; }
@@ -177,3 +174,38 @@ textarea.av-clip-edit { position: absolute; left: -1px; right: -1px; top: -1px; 
 /* LILAK's name conditions (?run==8000), out of the group path into a column of their own. */
 .av-in.cond { flex: 0 1 140px; font-family: var(--font-mono); color: var(--rk-cite-t); }
 .av-cols .av-in.cond { font-family: inherit; color: inherit; }
+/* The condition line under a row that holds only under ?… conditions: under the ? square, as wide as the rest. */
+.av-condrow { min-height: 26px; padding: 2px 6px; gap: 4px; background: color-mix(in srgb, var(--rk-cite) 30%, transparent); }
+.av-pwrap + .av-condrow, .av-prow + .av-condrow { border-top: 1px dashed var(--rk-line); }
+.av-cpad { flex: 0 0 13px; }
+.av-cif { color: var(--rk-cite-t); }
+.av-condrow .av-in.cond { flex: 1 1 auto; }
+.av-condrow.off .av-in { color: var(--rk-mute); text-decoration: line-through; }
+/* The directory tab: folders that open and fold, files under them. */
+.av-dirs { font-size: var(--rk-fs); color: var(--rk-text); background: var(--rk-panel); min-height: 100%; }
+.av-dirs-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--rk-edge); background: var(--rk-gut);
+  position: sticky; top: 0; z-index: 1; }
+.av-dirs-bar .av-tag { margin-right: auto; }
+.av-dir, .av-file { display: flex; align-items: center; gap: 6px; height: var(--rk-row); padding-right: 10px; border-bottom: 1px solid var(--rk-line); cursor: pointer; user-select: none; }
+.av-dir { background: var(--rk-gut); color: var(--rk-dim); }
+.av-dir.open { background: var(--rk-head); color: var(--rk-ink); }
+.av-dir:hover, .av-file:hover { background: var(--rk-hover); }
+.av-dir-mark { width: 10px; color: var(--rk-mute); }
+.av-dir-name { flex: 1 1 auto; font-family: var(--font-mono); }
+.av-dir .av-tag { color: inherit; }
+.av-file-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--rk-ink); }
+.av-file-run { white-space: nowrap; font-size: var(--fs-tiny); color: var(--rk-cite-t); }
+.av-file-n { width: 40px; text-align: right; font-family: var(--font-mono); font-size: var(--fs-tiny); color: var(--rk-mute); }
+.av-file-day { flex: 0 0 auto; min-width: 84px; white-space: nowrap; text-align: right; font-size: var(--fs-tiny); color: var(--rk-mute); }
+/* A `<` line's value: the cell with a mark at its right end — open the file, there, missing, or cannot tell. */
+.av-vbox { flex: 1 1 240px; min-width: 0; display: flex; position: relative; }
+.av-vbox > textarea.av-in.value { flex: 1 1 auto; width: 0; padding-right: 24px; }
+.av-inc { position: absolute; right: 3px; top: 3px; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border: 1px solid var(--rk-edge); background: var(--rk-panel); color: var(--rk-mute); font: var(--fs-small)/1 var(--font-mono); }
+.av-inc.ok { color: var(--rk-cite-t); border-color: var(--rk-cite-t); }
+button.av-inc { cursor: pointer; }
+button.av-inc:hover { background: var(--rk-cite-t); color: var(--rk-panel); }
+.av-inc.bad { color: var(--dock-danger-text, #b91c1c); border-color: currentColor; }
+/* Measured like the plain value cell (its 4px padding + 1px border), so the columns stay true. */
+.av-vbox { box-sizing: border-box; padding: 0 5px; }
+.av-vbox > textarea.av-in.value { margin: 0 -5px; }

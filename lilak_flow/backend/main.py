@@ -355,6 +355,52 @@ def convert(body: dict = Body(...), _: dict = Depends(manager)) -> dict:
     return {"text": text_of(body.get("rows") or [])}
 
 
+INCLUDE_FORMATS = ("mac", "conf", "par")
+
+
+def find_include(here: Path, value: str) -> dict:
+    """Where LILAK would find a `<name  value` include (LKParameterContainer::AddFile): e{…}
+    from the environment, a leading `!` dropped; /, $, . as given (. from the file's folder,
+    where a run starts); else the file's folder, then $LILAK_PATH/common and common/draw_style,
+    adding .mac/.conf/.par when there is no such ending. A {reference} or cv{…} cannot be read
+    from here: `unknown`. The environment is this server's, which a run may not share."""
+    v = str(value or "").strip().split()[0] if str(value or "").strip() else ""
+    if not v:
+        return {"state": "empty"}
+    if "{" in re.sub(r"e\{[^}]*\}", "", v):
+        return {"state": "unknown"}
+
+    def env(m):
+        name, _, default = m.group(1).partition(":-")
+        return os.environ.get(name) or default
+    v = re.sub(r"e\{([^}]*)\}", env, v).lstrip("!")
+    if not v:
+        return {"state": "unknown"}
+    if v[0] in "/$.~":
+        tries = [Path(os.path.expandvars(os.path.expanduser(v))) if v[0] != "." else here / v]
+    else:
+        names = [v] if v.endswith(tuple("." + f for f in INCLUDE_FORMATS)) else [f"{v}.{f}" for f in INCLUDE_FORMATS]
+        tries = [d / n for d in (here, LILAK_PATH / "common", LILAK_PATH / "common" / "draw_style") for n in names]
+    for t in tries:
+        if t.is_file():
+            t = t.resolve()
+            for root, base in ROOTS.items():
+                try:
+                    rel = t.relative_to(base.resolve())
+                except ValueError:
+                    continue
+                if t.suffix == ITEM_SUFFIX:
+                    return {"state": "found", "path": str(t), "id": f"{root}:{rel.as_posix()}"}
+            return {"state": "found", "path": str(t)}
+    return {"state": "missing", "tried": [str(t) for t in tries]}
+
+
+@app.get("/api/flow/include")
+def include(id: str, value: str, _: dict = Depends(manager)) -> dict:
+    """Does a `<` line's file exist, and which file in the list is it (to open it)."""
+    return find_include(item_path(id).parent, value)
+
+
 @app.get("/api/flow/graph")
 def graph(id: str, _: dict = Depends(manager)) -> dict:
     """LILAK's graph of one file. It runs ROOT, so a manager's, like any host read."""

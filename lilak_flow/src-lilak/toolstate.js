@@ -17,12 +17,12 @@ export function setTool(t) {
 export const toggleTool = () => setTool(open ? '' : load(`${KEY}.was`, 'info'))
 export const useTool = () => useSyncExternalStore((f) => { seen.add(f); return () => seen.delete(f) }, toolNow)
 
-// Files locked for viewing only (the lock button in the editor's top bar), kept across visits.
-const LOCK_KEY = 'lilak_flow.locked'
-let locked = new Set(load(LOCK_KEY, []))
+// Every file opens locked (view only); the lock button in the editor's top bar unlocks it.
+// The unlock lasts until the page reloads: the next visit starts locked again.
+let unlocked = new Set()
 const lockSeen = new Set()
 export function toggleLock(id) {
-  locked = new Set(locked); locked.has(id) ? locked.delete(id) : locked.add(id)
-  save(LOCK_KEY, [...locked]); lockSeen.forEach((f) => f())
+  unlocked = new Set(unlocked); unlocked.has(id) ? unlocked.delete(id) : unlocked.add(id)
+  lockSeen.forEach((f) => f())
 }
-export const useLocked = (id) => useSyncExternalStore((f) => { lockSeen.add(f); return () => lockSeen.delete(f) }, () => locked.has(id))
+export const useLocked = (id) => useSyncExternalStore((f) => { lockSeen.add(f); return () => lockSeen.delete(f) }, () => !unlocked.has(id))

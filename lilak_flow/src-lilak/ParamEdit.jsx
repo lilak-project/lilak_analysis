@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { load, save as keep, RackToolbox } from 'racklist'
 import { tr } from 'lilak-ui/i18n.jsx'
-import { loadFile, saveFile, restoreFile, convert, newFile } from './api.js'
+import { loadFile, saveFile, restoreFile, convert, newFile, findInclude } from './api.js'
 import { askNewFile } from './NewFile.jsx'
 import { TOOLS, VIEWS } from './tools.jsx'
 import { useTool, setTool, useLocked } from './toolstate.js'
@@ -35,6 +35,7 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
   const place = useCallback((el) => { root.current = el; anchor.current = el?.closest('.rl-edit') || el }, [])
   const [shut, setShut] = useState(new Set())   // groups folded in the group view
   const [picked, setPicked] = useState(new Set())
+  const [asking, setAsking] = useState(new Set())   // rows given ? whose condition is not typed yet
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState('')      // '' | 'wait' (edited) | 'on' (writing) | 'done' | 'stop' (refused: no more tries until the next edit)
   const drafts = useRef(new Map())               // rich view: a value's boxes as typed, by row key
@@ -186,6 +187,16 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
   const no = new Map(rows.map((r, i) => [r._k, i + 1]))
   const cell = (r, f, cls, title) => {
     const Box = f === 'value' || f === 'name' ? Wrap : f === 'comment' ? Clip : 'input'
+    // A `<` line's value is a file: a mark inside the cell says whether it is there, and opens it.
+    if (f === 'value' && String(r.unit || '').includes('<')) {
+      return (
+        <span className="av-vbox">
+          <Wrap className={`av-in ${cls}${r[f] ? '' : ' blank'}`} value={r[f] || ''} spellCheck={false} readOnly={locked} title={title}
+            onChange={(e) => change(edit(rows, r._k, { [f]: e.target.value }))} />
+          <IncludeMark file={id} value={r[f] || ''} open={ctx?.openItem} />
+        </span>
+      )
+    }
     return <Box className={`av-in ${cls}${r[f] ? '' : ' blank'}`} value={r[f] || ''} spellCheck={false} readOnly={locked} title={title ?? (f === 'comment' ? r[f] : undefined)}
       onChange={(e) => change(edit(rows, r._k, { [f]: e.target.value }))} />
   }
@@ -194,7 +205,8 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
   const condCell = (r) => {
     const typed = drafts.current.get(`c${r._k}`), now = condText(r.group)
     const shown = typed != null && condText(withConds(r.group, typed)) === now ? typed : now
-    return <input className="av-in cond" value={shown} spellCheck={false} readOnly={locked} title={tr('av_cond_hint')}
+    return <input className="av-in cond" value={shown} spellCheck={false} readOnly={locked} title={tr('av_cond_hint')} autoFocus={!now}
+      placeholder={tr('av_cond_ph')}
       onChange={(e) => { drafts.current.set(`c${r._k}`, e.target.value); change(edit(rows, r._k, { group: withConds(r.group, e.target.value) })) }} />
   }
   const groupCell = (r) => (
@@ -207,7 +219,14 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
       onClick={() => change(toggle(rows, new Set([r._k])))}>#</button>
     <button type="button" className={`av-sq${r.unit ? ' on' : ''}`} disabled={locked} title={r.unit && r.unit !== '<' ? tr('av_m_other', flagsOf(r.unit)) : tr('av_m_inc')}
       onClick={() => change(edit(rows, r._k, flip(r)))}>{r.unit || '<'}</button>
+    {/* ? : the line holds only under conditions — then a line below it says which. Off drops them. */}
+    <button type="button" className={`av-sq${hasCond(r) ? ' on' : ''}`} title={tr('av_m_cond')} disabled={locked}
+      onClick={() => {
+        if (hasCond(r)) { drafts.current.delete(`c${r._k}`); change(edit(rows, r._k, { group: withConds(r.group, '') })); setAsking((a) => { const n = new Set(a); n.delete(r._k); return n }) }
+        else setAsking((a) => new Set(a).add(r._k))
+      }}>?</button>
   </>)
+  const hasCond = (r) => r.kind === 'parameter' && (!!condText(r.group) || asking.has(r._k))
   const check = (ks) => {
     const n = ks.filter((k) => picked.has(k)).length
     return <input type="checkbox" checked={ks.length > 0 && n === ks.length} ref={(el) => { if (el) el.indeterminate = n > 0 && n < ks.length }}
@@ -222,7 +241,8 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
     const parts = !rich ? [] : typed && filled(typed) === String(r.value || '').trim() ? typed : partsOf(r.value)
     const setParts = (ps) => { drafts.current.set(r._k, ps); change(edit(rows, r._k, { value: filled(ps) })) }
     return (
-      <div key={r._k} className={`av-row av-prow${picked.has(r._k) ? ' on' : ''}${isOff(r) ? ' off' : ''}${rich ? ' rich' : ''}`}
+      <Fragment key={r._k}>
+      <div className={`av-row av-prow${picked.has(r._k) ? ' on' : ''}${isOff(r) ? ' off' : ''}${rich ? ' rich' : ''}`}
         onClick={(e) => { if (!e.target.closest('input, textarea, button, a, .av-clip')) pickOne(r._k) }}>
         <input type="checkbox" checked={picked.has(r._k)} onChange={() => pickOne(r._k)} />
         <span className="av-no">{no.get(r._k)}</span>
@@ -241,9 +261,16 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
             </span>
             {cell(r, 'comment', 'grow dim')}
           </>) : (<>
-            {marks(r)}{condCell(r)}{view !== 'group' && groupCell(r)}{cell(r, 'name', 'name')}{cell(r, 'value', 'value')}{cell(r, 'comment', 'grow dim')}
+            {marks(r)}{view !== 'group' && groupCell(r)}{cell(r, 'name', 'name')}{cell(r, 'value', 'value')}{cell(r, 'comment', 'grow dim')}
           </>)}
       </div>
+        {hasCond(r) && (
+          <div className={`av-row av-condrow${isOff(r) ? ' off' : ''}`}>
+            <span className="av-cpad" /><span className="av-no" /><span className="av-sq av-hd" /><span className="av-sq av-hd" />
+            <span className="av-sq av-hd av-cif">?</span>{condCell(r)}
+          </div>
+        )}
+      </Fragment>
     )
   }
 
@@ -263,9 +290,9 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
           <div className="av-row av-head av-prow av-cols">
             {check(rows.map((r) => r._k))}
             <span className="av-no" />
-            <span className="av-sq av-hd">#</span><span className="av-sq av-hd">&lt;</span>
+            <span className="av-sq av-hd">#</span><span className="av-sq av-hd">&lt;</span><span className="av-sq av-hd">?</span>
             {view === 'rich' ? (<><span className="av-full">name</span><span className="av-parts">values</span><span className="av-in grow">comment</span></>)
-              : (<><span className="av-in cond" title={tr('av_cond_hint')}>if</span>{/* In the group view the band names the group, so no GROUP column: NAME's heading opens or folds every group. */}
+              : (<>{/* In the group view the band names the group, so no GROUP column: NAME's heading opens or folds every group. */}
               {view === 'group' ? (
                 <button type="button" className="av-in name av-gall" onClick={() => setShut(shut.size ? new Set() : new Set(grouped(rows).map((g) => g.name)))}>
                   name <span className="av-gall-do">{shut.size ? tr('av_t_open_all') : tr('av_t_shut_all')}</span></button>
@@ -340,4 +367,22 @@ function Clip({ value, onChange, className, title, readOnly }) {
         : <span className="av-clip-text" style={{ WebkitLineClamp: n }}>{value}</span>}
     </span>
   )
+}
+
+// Where a `<` line's file is, asked a moment after the value stops changing.
+function IncludeMark({ file, value, open }) {
+  const [at, setAt] = useState(null)
+  useEffect(() => {
+    let live = true
+    setAt(null)
+    const t = setTimeout(() => findInclude(file, value).then((r) => live && setAt(r)), 600)
+    return () => { live = false; clearTimeout(t) }
+  }, [file, value])
+  if (!value.trim() || !at || at.state === 'empty') return null
+  if (at.state === 'found' && at.id) {
+    return <button type="button" className="av-inc ok" title={tr('av_inc_open', at.path)} onClick={() => open?.(at.id)}>↗</button>
+  }
+  if (at.state === 'found') return <span className="av-inc ok" title={tr('av_inc_found', at.path)}>✓</span>
+  if (at.state === 'missing') return <span className="av-inc bad" title={tr('av_inc_missing', (at.tried || []).join('\n'))}>!</span>
+  return <span className="av-inc" title={tr('av_inc_unknown')}>?</span>
 }

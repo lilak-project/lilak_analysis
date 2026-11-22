@@ -32,6 +32,14 @@ export const restoreFile = async (id) => (await ask('restore', { method: 'POST',
 export const convert = async (what) => (await ask('convert', { method: 'POST', body: JSON.stringify(what) })).body
 export const loadGraph = async (id) => (await ask(`graph?id=${encodeURIComponent(id)}`)).body
 
+/** Where a `<` line's file is: { state: found|missing|unknown|empty, path?, id? (openable) }. Asked once per value. */
+const includes = new Map()
+export function findInclude(id, value) {
+  const k = `${id}\n${value}`
+  if (!includes.has(k)) includes.set(k, ask(`include?id=${encodeURIComponent(id)}&value=${encodeURIComponent(value)}`).then((r) => r.body).catch(() => ({ state: 'unknown' })))
+  return includes.get(k)
+}
+
 /** A job on jobboard, as the person at the screen: jobrun checks the recipe, the file and the project. */
 export async function submitJob(recipe, params, project) {
   const proj = linkProject('jobboard') || 'jobboard'
