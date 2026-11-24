@@ -91,6 +91,12 @@ const viewTool = {
         {VIEWS.map((v) => <Tool key={v} k={`v_${v}`} on={view.now === v} go={() => view.show(v)} />)}
         <Tool k="open_all" off={grouped || !view.shut.size} go={() => view.setShut(new Set())} />
         <Tool k="shut_all" off={grouped} go={() => view.setShut(new Set(view.groups()))} />
+        <span className="av-tsize">
+          <button type="button" className="rl-btn" disabled={!view.smaller} {...press(() => view.smaller && view.smaller())}>−</button>
+          <span className="rl-mono">{Math.round(view.size * 100)}%</span>
+          <button type="button" className="rl-btn" disabled={!view.bigger} {...press(() => view.bigger && view.bigger())}>+</button>
+        </span>
+        <span className="av-tdesc">{tr('av_d_size')}</span>
       </div>
     )
   },

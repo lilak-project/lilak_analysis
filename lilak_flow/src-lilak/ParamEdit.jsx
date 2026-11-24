@@ -1,18 +1,20 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { load, save as keep, RackToolbox } from 'racklist'
 import { tr } from 'lilak-ui/i18n.jsx'
-import { loadFile, saveFile, restoreFile, convert, newFile, findInclude } from './api.js'
+import { loadFile, saveFile, restoreFile, convert, newFile, findInclude, folderOf } from './api.js'
 import { askNewFile } from './NewFile.jsx'
 import { TOOLS, VIEWS } from './tools.jsx'
-import { useTool, setTool, useLocked } from './toolstate.js'
+import { useTool, setTool, useLocked, useCompact, useScope, setScope, useSize, stepSize, SIZES, useInit, tryLocked } from './toolstate.js'
 import * as hist from './history.js'
+import FileInfo from './FileInfo.jsx'
+import { useClassPars } from './ClassPars.jsx'
 import {
   keyed, bare, insert, remove, move, toggle, fromFile, flip, edit, splitPath, condText, withConds, withPlain, copyOf, newPar, newComment, isOff,
   grouped, partsOf, valueOf, flagsOf, docOf,
 } from './rows.js'
 
 let clip = []   // copied rows, kept across the files open on this page
-const VIEW_KEY = 'lilak_flow.par.view'
+const VIEW_KEY = 'lilak_flow.par.view.v2'   // v2: group became the default, so a saved 'table' from before does not hold it back
 
 /**
  * One file's parameters, to edit, inside its record's editor: a line a row (comments
@@ -25,7 +27,12 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
   const [file, setFile] = useState(null)        // what is on disk: { version, backups }
   const [rows, setRows] = useState([])
   const [text, setText] = useState('')
-  const [view, setView] = useState(() => (VIEWS.includes(load(VIEW_KEY, 'table')) ? load(VIEW_KEY, 'table') : 'table'))
+  const [view, setView] = useState(() => (VIEWS.includes(load(VIEW_KEY, 'group')) ? load(VIEW_KEY, 'group') : 'group'))
+  const compact = useCompact()
+  const size = useSize()               // text and cells together (the view tool's − +)
+  const scope = useScope(id)           // the board's picked card: only its groups show
+  const classPars = useClassPars(scope?.cls)   // a hook: above the early returns
+  const inited = useInit(id)           // the board's dry Init: what a value with e{…} or {ref} became
   const locked = useLocked(id)         // view only: every edit below is refused
   const tool = useTool()               // the open tool's id, '' for shut (the button is in the editor's top bar)
   const root = useRef(null)
@@ -114,9 +121,23 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
       setView(next); keep(VIEW_KEY, next); setSaid(''); setPicked(new Set())
     } catch (e) { setSaid(e.message) }
   }
+  // A board card's edit of this file (a task added or taken out): made here, so it saves, undoes
+  // and redraws the board like any other edit. Read anew each render, for the rows as they are now.
+  useEffect(() => {
+    const on = (e) => {
+      const d = e.detail
+      if (d?.id !== id || !file) return        // not read yet: the board writes the file itself
+      d.took = true
+      if (locked) d.refused = tr('av_edit_locked')
+      else if (raw) d.refused = tr('av_edit_raw')
+      else change(keyed(d.fn(rows)))
+    }
+    window.addEventListener('lilak_flow:edit', on)
+    return () => window.removeEventListener('lilak_flow:edit', on)
+  })
   // A copy of what is on screen (saved or not) as a new file, then that file's editor.
   const copyTo = async (title, name) => {
-    const where = await askNewFile({ title, preset: { project: flow.project, folder: flow.path.split('/').slice(flow.project === 'lilak' ? 0 : 1, -1).join('/'), name } })
+    const where = await askNewFile({ title, preset: { project: flow.project, folder: folderOf(flow), name } })
     if (!where) return
     try {
       const made = await newFile({ ...where, ...body() })
@@ -145,6 +166,9 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
   }, [push])
 
   if (!flow) return null
+  // A task's card also holds the groups of the helpers it makes (LKFrameBuilder for the merger).
+  const groups = scope ? [...new Set([...scope.groups, ...(scope.cls ? classPars.map((p) => p.group) : [])])] : []
+  const seen = scope ? rows.filter((r) => r.kind === 'parameter' && groups.includes(splitPath(r.group).plain)) : rows
   if (!file) return <div className="av-say">{said || tr('av_loading')}</div>
   const some = picked.size > 0
   const pickAll = () => setPicked(picked.size === rows.length ? new Set() : new Set(rows.map((r) => r._k)))
@@ -169,7 +193,8 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
         setRows(keyed(fromFile(h.rows))); setText(h.text); setStale(''); setPicked(new Set()); drafts.current.clear()
         edited(); setSaid(tr('av_back_to', hist.hhmm(h.at)))
       } },
-    view: { now: view, show, groups: () => grouped(rows).map((g) => g.name), shut, setShut },
+    view: { now: view, show, groups: () => grouped(rows).map((g) => g.name), shut, setShut,
+      size, smaller: size > SIZES[0] && (() => stepSize(-1)), bigger: size < SIZES[SIZES.length - 1] && (() => stepSize(1)) },
     rows: {
       raw, some: picked.size, clip: clip.length,
       addPar: () => add([newPar(lastGroup)]), addComment: () => add([newComment()]),
@@ -197,8 +222,11 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
         </span>
       )
     }
-    return <Box className={`av-in ${cls}${r[f] ? '' : ' blank'}`} value={r[f] || ''} spellCheck={false} readOnly={locked} title={title ?? (f === 'comment' ? r[f] : undefined)}
+    const box = <Box className={`av-in ${cls}${r[f] ? '' : ' blank'}`} value={r[f] || ''} spellCheck={false} readOnly={locked} title={title ?? (f === 'comment' ? r[f] : undefined)}
       onChange={(e) => change(edit(rows, r._k, { [f]: e.target.value }))} />
+    const got = f === 'value' && String(r.value || '').includes('{') && inited[`${splitPath(r.group).plain}/${r.name}`]
+    if (!got || got.length !== 1 || got[0] === r.value) return box
+    return <span className="av-vbox">{box}<span className="av-inited" title={tr('av_inited')}>= {got[0]}</span></span>
   }
   // The group path in two cells: its `?…` conditions (LILAK's name conditions) and the plain group.
   // The condition cell keeps what is typed (a space before the next one) while it means the same.
@@ -232,6 +260,30 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
     return <input type="checkbox" checked={ks.length > 0 && n === ks.length} ref={(el) => { if (el) el.indeterminate = n > 0 && n < ks.length }}
       onChange={() => pickMany(ks)} />
   }
+  // The picked task's (or detector's) parameters this file does not set, as rows of its own kind
+  // in grey: the name is a box, and pressing it puts the row in the file after the class's rows.
+  const have = new Set(seen.map((r) => `${splitPath(r.group).plain}/${r.name}`))
+  const ghosts = scope?.cls ? classPars.filter((p) => !have.has(`${p.group}/${p.name}`)) : []
+  const addPar = (p) => {
+    // One with no value comes in switched off (#): a name with nothing after it is still "set" for
+    // LILAK (CheckPar is true), and a task may read its first value (LKCoboFrameMergerTask's InputFileName).
+    const [made] = keyed([{ ...newPar(p.group), name: p.name, value: p.value || '', comment: p.comment || '', ...(p.value ? {} : { enabled: false }) }])
+    const at = (g) => rows.map((r) => r.kind === 'parameter' && splitPath(r.group).plain === g).lastIndexOf(true)
+    const last = at(p.group) >= 0 ? at(p.group) : Math.max(...groups.map(at))
+    change(last < 0 ? [...rows, made] : [...rows.slice(0, last + 1), made, ...rows.slice(last + 1)], new Set([made._k]))
+  }
+  const ghost = (p) => (
+    <div key={`ghost:${p.group}/${p.name}`} className="av-row av-prow av-ghost">
+      <input type="checkbox" disabled /><span className="av-no" />
+      <span className="av-sq av-hd" /><span className="av-sq av-hd" /><span className="av-sq av-hd" />
+      {view !== 'group' && view !== 'rich' && <span className="av-in group">{p.group}</span>}
+      <button type="button" className={`av-in name av-gname${view === 'rich' ? ' av-full' : ''}`} disabled={locked}
+        data-add={tr('av_cpars_add')} title={locked ? tr('av_edit_locked') : `${tr('av_cpars_add')}: ${p.group}/${p.name}`}
+        onClick={() => addPar(p)}>{p.name}</button>
+      <span className="av-in value" title={p.value}>{p.value}</span>
+      <span className="av-in grow dim" title={p.comment}>{p.comment || (p.from === 'source' ? tr('av_cpars_src') : '')}</span>
+    </div>
+  )
   const line = (r) => {
     const rich = view === 'rich' && r.kind === 'parameter'
     // As typed, empty boxes too: the value itself is the filled ones, and a box just added
@@ -275,20 +327,24 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
   }
 
   return (
-    <div className={`av-pane${locked ? ' locked' : ''}`} ref={place}>
+    <div className={`av-pane${locked ? ' locked' : ''}${compact ? ' compact' : ''}`} ref={place}
+      // Locked: a key typed into a cell, or a press on a mark or a cell, says where the unlock is.
+      onKeyDownCapture={(e) => { if (locked && e.target.matches('input:not([type=checkbox]), textarea') && (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete')) tryLocked(id) }}
+      onPointerDownCapture={(e) => { if (locked && e.target.closest('.av-params .av-sq, .av-params .av-gname, .av-params textarea, .av-raw')) tryLocked(id) }}>
       {!ctx?.say && said && <div className="av-say av-note">{said}</div>}
       {tool ? (
         <RackToolbox anchor={anchor} kit={TOOLS} at={TOOLS.find((t) => t.id === tool) || TOOLS[0]} ctx={box}
           onPick={setTool} onShut={() => setTool('')} onPush={setPush} title={flow.name} />
       ) : null}
       {raw ? (
-        <><div className="av-row av-head av-cols"><span className="av-in grow">raw</span></div>
+        <div style={{ zoom: size }}><div className="av-row av-head av-cols"><span className="av-in grow">raw</span></div>
         <textarea className="av-raw" value={text} spellCheck={false} readOnly={locked} rows={Math.min(40, Math.max(12, text.split('\n').length + 1))}
-          onChange={(e) => { setText(e.target.value); setStale('rows'); edited() }} /></>
+          onChange={(e) => { setText(e.target.value); setStale('rows'); edited() }} /></div>
       ) : (
-        <div className="av-params">
+        <div className="av-params" style={{ zoom: size }}>
+          {scope?.file ? <FileInfo id={id} label={scope.label} {...scope.file} /> : <>
           <div className="av-row av-head av-prow av-cols">
-            {check(rows.map((r) => r._k))}
+            {check(seen.map((r) => r._k))}
             <span className="av-no" />
             <span className="av-sq av-hd">#</span><span className="av-sq av-hd">&lt;</span><span className="av-sq av-hd">?</span>
             {view === 'rich' ? (<><span className="av-full">name</span><span className="av-parts">values</span><span className="av-in grow">comment</span></>)
@@ -298,7 +354,7 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
                   name <span className="av-gall-do">{shut.size ? tr('av_t_open_all') : tr('av_t_shut_all')}</span></button>
               ) : <><span className="av-in group">group</span><span className="av-in name">name</span></>}<span className="av-in value">value</span><span className="av-in grow">comment</span></>)}
           </div>
-          {view === 'group' ? grouped(rows).map((g) => (
+          {view === 'group' ? grouped(seen).map((g) => (
             <div key={g.name} className="av-pgroup">
               {/* The whole band opens and shuts it; its checkbox and doc link do their own thing. */}
               <div className={`av-row av-band ${shut.has(g.name) ? 'shut' : 'open'}`} role="button" aria-expanded={!shut.has(g.name)}
@@ -315,9 +371,13 @@ export default function ParamEdit({ flow, ctx, patch, fieldCtx }) {
                 <span className="av-tag">{g.rows.length} · {shut.has(g.name) ? tr('av_shut') : tr('av_open')}</span>
               </div>
               {!shut.has(g.name) && g.rows.map(line)}
+              {!shut.has(g.name) && ghosts.filter((x) => x.group === g.name).map(ghost)}
             </div>
-          )) : rows.map(line)}
+          )) : seen.map(line)}
           {!rows.length && <div className="av-say">{tr('av_empty')}</div>}
+          {/* In the group view a group's own sit under it; those of a group the file has none of, here. */}
+          {(view === 'group' ? ghosts.filter((x) => !grouped(seen).some((g) => g.name === x.group)) : ghosts).map(ghost)}
+          </>}
         </div>
       )}
     </div>

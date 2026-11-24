@@ -3,7 +3,7 @@
 .av-bar { display: flex; align-items: center; gap: 8px; height: var(--rk-row); padding: 0 8px; flex: 0 0 auto;
   background: var(--rk-panel); border-bottom: 1px solid var(--rk-edge); }
 .av-path { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-family: var(--font-mono); color: var(--rk-dim); }
+  font-family: var(--font-mono); font-size: var(--fs-small, 12px); color: var(--rk-dim); }
 .av-map { flex: 1 1 auto; min-height: 0; position: relative; }
 .av-say { padding: 10px 12px; color: var(--rk-dim); }
 .av-say.bad { color: var(--dock-danger-text, #b91c1c); white-space: pre-wrap; }
@@ -11,23 +11,35 @@
 .av-node { width: 232px; background: var(--rk-panel); border: 1px solid var(--rk-edge); color: var(--rk-text);
   font-size: var(--rk-fs); line-height: 1; }
 .av-node.empty { border-style: dashed; color: var(--rk-mute); }
-.react-flow__node.selected .av-node { border-color: var(--rk-ink); }
 .av-row { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; position: relative; }
 .av-row + .av-row { border-top: 1px solid var(--rk-line); }
 .av-head { background: var(--rk-head); box-shadow: inset 3px 0 0 var(--av-kind, var(--rk-dim)); margin: -1px 0 0; }
-.av-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--rk-ink); }
+.av-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--rk-ink);
+  line-height: 1.5; }   /* room for g, y, p under the line: overflow: hidden cuts at the line box */
 .av-tag { flex: 0 0 auto; font-size: var(--fs-tiny); color: var(--rk-dim); }
 .av-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--rk-dim); }
 .av-port { color: var(--rk-dim); }
 .av-pt { position: relative; display: flex; align-items: center; height: 100%; }
 .av-pt.out { margin-left: auto; }
-.av-pt .react-flow__handle-left { left: -8px; }
-.av-pt .react-flow__handle-right { right: -8px; }
-.av-node .react-flow__handle { width: 6px; height: 6px; min-width: 0; min-height: 0; border: 0; border-radius: 0; background: var(--rk-dim); }
+/* The flow as a table: real size, scrolled; cards placed by layout.js, lines over them in one svg. */
+.av-tbl { position: absolute; inset: 0; overflow: auto; }
+.av-tbl-in { position: relative; }
+.av-tbl .av-node { position: absolute; box-sizing: border-box; }
+.av-tbl .av-node { font-size: var(--fs-small); }
+.av-tbl .av-row { box-sizing: border-box; height: 22px; gap: 4px; padding: 0 10px; }
+.av-tbl .av-tag { font-size: var(--fs-micro); }
+.av-tbl .av-head { margin: 0; }
+.av-dot { position: absolute; top: 50%; width: 6px; height: 6px; margin-top: -3px; background: var(--rk-dim); }
+/* Inside the card, on its edge: the line meets the border right beside it. */
+.av-dot.l { left: -10px; }
+.av-dot.r { right: -10px; }
+.av-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.av-lines path { fill: none; stroke: var(--rk-dim); stroke-width: 1; }
+.av-lines path.chain { stroke: var(--rk-dim); stroke-width: 2; }
+.av-lines path.dashed { stroke-dasharray: 6 4; }
+.av-lines path.moving { stroke: var(--rk-ink); stroke-dasharray: 5 3; animation: av-flow 0.8s linear infinite; }
+@keyframes av-flow { to { stroke-dashoffset: -8; } }
 
-.av-map .react-flow__edge-path { stroke: var(--rk-dim); stroke-width: 1.2; }
-.av-map .av-static .react-flow__edge-path { stroke-dasharray: 6 4; }
-.av-map .react-flow__controls button { border-radius: 0; }
 
 .av-bad { color: var(--dock-danger-text, #b91c1c); max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .av-params { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px;
@@ -66,7 +78,14 @@
 .av-tools > .rl-btn { justify-self: stretch; text-align: left; }
 .av-tdesc { color: var(--rk-dim); font-size: var(--fs-small); line-height: 1.25; padding-top: 3px; }
 .av-no { flex: 0 0 30px; text-align: right; font-family: var(--font-mono); font-size: var(--fs-tiny); color: var(--rk-mute); }
-.av-cols { color: var(--rk-dim); font-size: var(--fs-tiny); letter-spacing: .04em; text-transform: uppercase; }
+.av-cols { color: var(--rk-text); font-size: var(--rk-fs); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+/* Only the column names: the small squares and NAME's fold-all stay as they were. */
+/* The column titles' row: its own tint, and a line between one column and the next. */
+.av-pane .av-row.av-cols { background: color-mix(in srgb, var(--rk-panel) 80%, #2563eb); border-bottom: 1px solid var(--rk-edge); }
+.av-cols > .av-in { align-self: stretch; display: flex; align-items: center; padding-left: 6px; border-left: 1px solid color-mix(in srgb, var(--rk-edge) 60%, var(--rk-text)); }
+/* The first heading (group, or name) has the row's own bar before it: no second line. */
+.av-cols > .av-in.group, .av-cols:not(:has(> .av-in.group)) > .av-in.name, .av-cols > .av-full, .av-cols > .av-gall { border-left: 0; }
+.av-cols .av-sq, .av-cols .av-gall-do { font-size: var(--fs-tiny); font-weight: 400; color: var(--rk-dim); }
 .av-cols .av-in { height: auto; }
 .av-prow { cursor: pointer; }
 .av-prow.rich { height: auto; min-height: 26px; padding-top: 2px; padding-bottom: 2px; align-items: center; }
@@ -182,13 +201,15 @@ textarea.av-clip-edit { position: absolute; left: -1px; right: -1px; top: -1px; 
 .av-condrow .av-in.cond { flex: 1 1 auto; }
 .av-condrow.off .av-in { color: var(--rk-mute); text-decoration: line-through; }
 /* The directory tab: folders that open and fold, files under them. */
-.av-dirs { font-size: var(--rk-fs); color: var(--rk-text); background: var(--rk-panel); min-height: 100%; }
+.av-dirs { font-size: var(--rk-fs); color: var(--rk-text); background: var(--rk-panel); height: 100%; overflow: auto; }
 .av-dirs-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--rk-edge); background: var(--rk-gut);
   position: sticky; top: 0; z-index: 1; }
 .av-dirs-bar .av-tag { margin-right: auto; }
 .av-dir, .av-file { display: flex; align-items: center; gap: 6px; height: var(--rk-row); padding-right: 10px; border-bottom: 1px solid var(--rk-line); cursor: pointer; user-select: none; }
-.av-dir { background: var(--rk-gut); color: var(--rk-dim); }
-.av-dir.open { background: var(--rk-head); color: var(--rk-ink); }
+/* Folders in their own tint (blue over the panel, so it follows the theme), files on the panel. */
+.av-dir { background: color-mix(in srgb, var(--rk-panel) 90%, #2563eb); color: var(--rk-dim); }
+.av-dir.open { background: color-mix(in srgb, var(--rk-panel) 82%, #2563eb); color: var(--rk-ink); }
+.av-file.on { background: var(--rk-pick, var(--rk-hover)); box-shadow: inset 3px 0 0 var(--rk-ink); }
 .av-dir:hover, .av-file:hover { background: var(--rk-hover); }
 .av-dir-mark { width: 10px; color: var(--rk-mute); }
 .av-dir-name { flex: 1 1 auto; font-family: var(--font-mono); }
@@ -209,3 +230,206 @@ button.av-inc:hover { background: var(--rk-cite-t); color: var(--rk-panel); }
 /* Measured like the plain value cell (its 4px padding + 1px border), so the columns stay true. */
 .av-vbox { box-sizing: border-box; padding: 0 5px; }
 .av-vbox > textarea.av-in.value { margin: 0 -5px; }
+
+/* Compact: group, name and value only. */
+.av-pane.compact .av-params input[type=checkbox],
+.av-pane.compact .av-params .av-no,
+.av-pane.compact .av-params .av-row > .av-sq,
+.av-pane.compact .av-params .grow,
+.av-pane.compact .av-params .av-condrow,
+.av-pane.compact .av-params .av-prow:has(> .av-hash) { display: none; }
+
+/* Focus: a card clicked; the rest fades, its lines take their branch colour */
+.av-tbl .av-node { cursor: pointer; }
+.av-tbl-in.focused .av-node:not(.on) { opacity: 0.35; }
+.av-tbl-in.focused .av-lines path:not(.on) { opacity: 0.12; }
+.av-lines path.on { stroke: #2563eb; stroke-width: 1.5; }
+.av-tbl-in.focused .av-node.on { border-color: var(--av-kind, var(--rk-text)); }   /* no colour of its own (Run, the files): the text's, plain to see */
+
+/* The board's picked card narrows the editor: a line saying so, and a way back */
+.av-scope { gap: 8px; padding: 0 8px; background: color-mix(in srgb, var(--rk-panel) 88%, #2563eb); color: var(--rk-text); }
+.av-scope span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The picked card's doc · header · source, in its class row; short names on a narrow card */
+.av-tbl .av-node { container-type: inline-size; }
+.av-tbl .av-acts { gap: 4px; overflow: hidden; }
+.av-tbl .av-acts .rl-btn { flex: 0 1 auto; min-width: 0; height: 18px; padding: 0 6px; font-size: var(--fs-micro); line-height: 16px; text-decoration: none; white-space: nowrap; }
+.av-tbl .av-acts .s { display: none; }
+@container (max-width: 200px) {
+  .av-tbl .av-acts .l { display: none; }
+  .av-tbl .av-acts .s { display: inline; }
+  .av-tbl .av-acts .rl-btn { padding: 0 4px; }
+}
+/* A class's header or source, read only (note's CodeArea) */
+.av-code { flex: 1; min-height: 0; overflow: hidden; font-size: 12px; background: var(--rk-panel); }
+.av-code .cm-editor { height: 100%; }
+.av-code .cm-gutters { background: var(--rk-panel); color: var(--rk-mute); border-right: 1px solid var(--rk-edge); }
+
+/* note's CodeArea colours for a dark ground — the same values as note.css, so code reads alike in both */
+:root[data-lilak-theme="dark"] {
+  --nt-syn-404740: #a6a4bb; --nt-syn-708: #c792ea; --nt-syn-219: #82aaff; --nt-syn-164: #9ccc65;
+  --nt-syn-a11: #f78c6c; --nt-syn-e40: #ffb86c; --nt-syn-00f: #82b1ff; --nt-syn-30a: #b4a7ff;
+  --nt-syn-085: #5fd3b0; --nt-syn-167: #6cd9c8; --nt-syn-256: #8fd0ff; --nt-syn-00c: #8fa8ff;
+  --nt-syn-940: #d6a86a; --nt-syn-f00: #ff6b6b;
+}
+
+/* Card buttons beyond the class's: removing asks once more, in red */
+.av-tbl .av-acts .rl-btn.bad { color: #fff; background: #b91c1c; border-color: #b91c1c; }
+/* The e{…} card: a name and the value an Init here gives it */
+.av-tbl .av-env { gap: 4px; cursor: default; }
+.av-env-k { flex: 0 1 auto; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); color: var(--rk-dim); }
+.av-env-v { flex: 1; min-width: 0; height: 18px; padding: 0 4px; font: inherit; font-family: var(--font-mono);
+  color: var(--rk-text); background: var(--rk-ground); border: 1px solid var(--rk-edge); }
+/* The run card's task search, under it */
+.av-pick { position: absolute; z-index: 5; display: flex; flex-direction: column; max-height: 320px; overflow: auto;
+  background: var(--rk-panel); border: 1px solid var(--rk-edge); box-shadow: 0 6px 16px rgb(0 0 0 / .18); }
+.av-pick input { height: 26px; padding: 0 8px; font: inherit; color: var(--rk-text); background: var(--rk-ground);
+  border: 0; border-bottom: 1px solid var(--rk-edge); outline: none; }
+.av-pick button { display: flex; justify-content: space-between; gap: 8px; height: 24px; padding: 0 8px; font: inherit;
+  text-align: left; color: var(--rk-text); background: none; border: 0; cursor: pointer; }
+.av-pick button:hover { background: color-mix(in srgb, var(--rk-panel) 85%, #b91c1c); }
+.av-pick button i { font-style: normal; color: var(--rk-mute); font-size: var(--fs-micro); }
+.av-pick-say { padding: 6px 8px; color: var(--rk-dim); }
+.av-pick-say.bad { color: #b91c1c; }
+/* A file's parameters after Init */
+.av-init-q { width: 160px; height: 20px; padding: 0 6px; font: inherit; color: var(--rk-text); background: var(--rk-ground); border: 1px solid var(--rk-edge); }
+.av-init { flex: 1; min-height: 0; overflow: auto; font-family: var(--font-mono); font-size: 12px; background: var(--rk-panel); }
+.av-init-row { display: flex; gap: 12px; padding: 2px 10px; border-bottom: 1px solid color-mix(in srgb, var(--rk-edge) 50%, transparent); }
+.av-init-row .k { flex: 0 0 38%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--rk-dim); }
+.av-init-row .v { flex: 1; min-width: 0; white-space: pre-wrap; word-break: break-all; color: var(--rk-text); }
+.av-init-tail { max-height: 50vh; overflow: auto; font-size: 11px; white-space: pre-wrap; }
+/* An input the run cannot open (missing, or a search that found nothing) */
+.av-tbl .av-node.bad { border-color: #b91c1c; }
+.av-tbl .av-node.bad .av-sub { color: #b91c1c; }
+/* The view tool's size: − 90% + */
+.av-tsize { display: inline-flex; align-items: center; gap: 6px; }
+.av-tsize .rl-btn { min-width: 26px; justify-content: center; }
+
+/* An Input/Output File card in the editor: one row per file. */
+.av-finfo { gap: 8px; align-items: flex-start; height: auto; min-height: 26px; flex: 0 0 auto; padding-top: 3px; padding-bottom: 3px; box-sizing: border-box; }
+.av-fpath { flex: 1 1 auto; min-width: 0; }
+.av-finfo .av-fpath { height: auto; line-height: 20px; }   /* not an input's 22px: a long path wraps and the row grows */
+.av-finfo .av-in { font-family: var(--font-mono); white-space: normal; overflow-wrap: anywhere; }
+.av-fok { width: 1.2em; text-align: center; }
+.av-fok.ok { color: #16a34a; } .av-fok.bad { color: #dc2626; }
+.av-fsz, .av-ftm { color: var(--rk-dim, var(--rk-text)); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* A value with e{…} or {ref}: what the board's dry Init made of it, at the cell's end. */
+.av-inited { flex: 0 1 auto; align-self: center; max-width: 50%; padding: 0 6px; font-family: var(--font-mono);
+  color: #16a34a; white-space: normal; overflow-wrap: anywhere; cursor: help; }
+
+/* Run: the one button that runs the file through (and writes its output), apart from the rest. */
+.rl-btn.av-go { background: color-mix(in srgb, var(--rk-brand, #1d4ed8) 22%, var(--rk-panel)); border-color: color-mix(in srgb, var(--rk-brand, #1d4ed8) 60%, var(--rk-panel));
+  color: var(--rk-ink, var(--rk-text)); font-weight: 600; }
+.rl-btn.av-go:hover:not(:disabled) { background: color-mix(in srgb, var(--rk-brand, #1d4ed8) 32%, var(--rk-panel)); }
+.rl-btn.av-go:disabled { opacity: 0.5; }
+
+/* The run log drawer under the board (the rack list's 나열 handle): root's output, line by line. */
+.av-runlog { min-height: 80px; overflow: auto; margin: 0 11px 9px; padding: 6px 9px;
+  border: 1px solid var(--rk-edge); background: var(--rk-panel); font-family: var(--rk-mono, var(--font-mono));
+  font-size: 12px; line-height: 1.45; color: var(--rk-text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.av-runlog .bad { color: #dc2626; }
+.av-runlog .warn { color: #b45309; }
+.av-runlog .dim { color: var(--rk-dim); }
+
+.av-runpanel .rl-outhead { font-size: var(--fs-body, 13px); }
+
+/* A logbook log opened here: logbook's own editor, framed. */
+.av-log-frame { flex: 1 1 auto; min-height: 0; width: 100%; border: 0; background: var(--rk-panel); }
+/* logbook, updated by a run and not yet opened: the run's colour (amber) until it is. */
+.rl-btn.av-new { background: color-mix(in srgb, #f59e0b 22%, var(--rk-panel)); border-color: color-mix(in srgb, #f59e0b 55%, var(--rk-panel)); color: var(--rk-ink, var(--rk-text)); }
+
+/* The run log's handle: the left two thirds fold it, the right third is a grip that sets its height. */
+.av-runhead { display: flex; align-items: stretch; }
+.av-runhead > .rl-outhead { flex: 2 1 0; min-width: 0; }
+.av-grip { flex: 1 1 0; cursor: ns-resize; touch-action: none; border-left: 1px solid var(--rk-line);
+  display: flex; align-items: center; justify-content: center; }
+/* Six dots, three by two: the grip's mark. */
+.av-grip::before { content: ''; width: 18px; height: 12px;
+  background: radial-gradient(circle, var(--rk-dim) 1.6px, transparent 2px) 0 0 / 6px 6px; }
+.av-grip:hover { background-color: var(--rk-hover); }
+
+/* A class's parameters this file does not set: rows like the others, every cell the comment's grey;
+   the name is a box that puts the row in the file (hover says so). */
+.av-ghost .av-in { background: var(--rk-gut, var(--rk-hover)); color: var(--rk-dim); line-height: 22px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.av-ghost .av-gname { position: relative; text-align: left; cursor: pointer; border: 1px dashed var(--rk-edge); font: inherit; }
+.av-ghost .av-gname:hover:not(:disabled) { border-style: solid; border-color: var(--rk-ink); color: var(--rk-ink); }
+.av-ghost .av-gname:hover:not(:disabled)::after { content: '+ ' attr(data-add); position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  padding: 0 6px; background: var(--rk-panel); color: var(--rk-ink); font-size: var(--fs-tiny, 11px); border: 1px solid var(--rk-edge); }
+/* A card's class name: under its title, smaller and slanted. */
+.av-tbl .av-node .av-sub.av-cls { font-style: italic; font-size: var(--fs-tiny, 11px); }
+
+/* No line numbers: the rows say enough by their place. */
+.av-params .av-no { display: none; }
+
+/* The unlock button after a try to change the locked file: it shakes, and a blue light runs once round its border. */
+@property --av-turn { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes av-blink { to { --av-turn: 360deg; } }
+@keyframes av-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+.rl-btn.av-blink {
+  border-color: transparent;
+  background: linear-gradient(var(--rk-panel), var(--rk-panel)) padding-box,
+    conic-gradient(from var(--av-turn), var(--rk-edge) 0 55%, var(--rk-brand, #1d4ed8) 80%, var(--rk-edge) 100%) border-box;
+  animation: av-blink 0.6s linear 1, av-shake 0.32s ease-out 1; }
+
+/* The run card's state row (runStat) and the output's RunHeader, compact. */
+.av-tbl .av-node .av-stat { font-size: var(--fs-tiny, 11px); }
+.av-tbl .av-node .av-stat.ok { color: var(--rk-ok, #15803d); }
+.av-tbl .av-node .av-stat.bad { color: #b91c1c; }
+.av-tbl .av-node .av-stat.run { color: var(--rk-accent, #2563eb); }
+.av-prow.av-hrow { cursor: default; }   /* read only: a parameter row's look, nothing to pick */
+/* Long words wrap inside their cell, the row grows with them: nothing runs past its box or is cut. */
+.av-hrow { height: auto; align-items: stretch; }
+.av-hrow .av-in { height: auto; min-height: 22px; line-height: 18px; padding-top: 2px; padding-bottom: 2px; white-space: normal; overflow-wrap: anywhere; }
+.av-fhead { height: auto; min-height: 26px; }
+.av-fhead .av-fpath { height: auto; white-space: normal; overflow-wrap: anywhere; line-height: 1.35; padding-top: 3px; padding-bottom: 3px; }
+
+/* The new file's folders: one a line, a fixed height that scrolls. */
+.av-flist { display: flex; flex-direction: column; gap: 4px; flex: 1 1 auto; min-width: 0; }
+.av-flist-in { display: flex; flex-direction: column; height: 10.5em; overflow-y: auto; border: 1px solid var(--rk-line); background: var(--rk-panel); }
+.av-fitem { font: inherit; text-align: left; padding: 2px 8px; border: 0; border-bottom: 1px solid var(--rk-line); background: transparent; color: var(--rk-text); cursor: pointer; }
+.av-fitem:hover { background: var(--rk-hover); }
+.av-fitem.on { background: color-mix(in srgb, var(--rk-accent, #2563eb) 15%, var(--rk-panel)); color: var(--rk-ink); }
+.av-cmp .value.was { color: var(--rk-dim); text-decoration: line-through; }
+.av-finfo.av-fix { gap: 6px; align-items: center; padding-left: 28px; }
+.av-finfo.av-fix .rl-in { flex: 1 1 auto; min-width: 0; }
+
+/* A commented-out (#) parameter: its cells grey, like a comment row and the class's ghost rows. */
+.av-prow.off .av-in, .av-prow.off .av-in.name, .av-prow.off .av-in.value, .av-prow.off .av-full,
+.av-prow.off .av-in.value.blank { background: var(--rk-gut, var(--rk-hover)); }
+
+/* The guide: a trail of its steps, one step at a time, Back / Next / Confirm under it. */
+.av-guide { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px; overflow: auto; height: 100%; box-sizing: border-box; }
+.av-g-trail { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.av-g-dot { font: inherit; font-size: var(--fs-tiny, 11px); border: 1px solid var(--rk-line); background: var(--rk-panel); color: var(--rk-dim); padding: 1px 6px; cursor: pointer; }
+.av-g-dot b { margin-right: 4px; color: var(--rk-ink); }
+.av-g-dot.past { color: var(--rk-text); }
+.av-g-dot.on { border-color: var(--rk-ink); background: color-mix(in srgb, var(--rk-accent, #2563eb) 15%, var(--rk-panel)); color: var(--rk-ink); }
+.av-g-step { border: 1px solid var(--rk-line); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.av-g-title { font-weight: 600; color: var(--rk-ink); }
+.av-g-say { color: var(--rk-dim); line-height: 1.5; }
+.av-g-body { display: flex; flex-direction: column; gap: 6px; }
+.av-g-body > .rl-btn { align-self: flex-start; }
+.av-g-line { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.av-g-in { flex: none; width: 100%; box-sizing: border-box; min-width: 0; font-family: var(--font-mono); }
+.av-g-line .av-g-in { flex: 1 1 260px; width: auto; }
+.av-g-files { max-height: 12em; overflow: auto; font-family: var(--font-mono); font-size: var(--fs-small, 12px); }
+.av-g-files .bad, .av-say.bad { color: #b91c1c; }
+.av-say.ok { color: var(--rk-ok, #15803d); }
+.av-g-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+/* The guide's button: its own colour (teal), tinted like Run (brand) and a new logbook (amber). */
+.rl-btn.av-guide-btn { background: color-mix(in srgb, #0d9488 22%, var(--rk-panel)); border-color: color-mix(in srgb, #0d9488 60%, var(--rk-panel)); color: var(--rk-ink, var(--rk-text)); }
+.rl-btn.av-guide-btn:hover:not(:disabled) { background: color-mix(in srgb, #0d9488 34%, var(--rk-panel)); }
+.av-g-deeper { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: 6px 8px; border-left: 3px solid var(--rk-accent, #2563eb); }
+/* The guide's buttons hold still: on top, kept in sight while the step scrolls, Next and Confirm in one slot of one width. */
+.av-guide > .av-g-foot { position: sticky; top: -10px; z-index: 2; background: var(--rk-panel); padding: 6px 0; margin: -6px 0; }
+.av-g-dot.bad { border-color: #b91c1c; color: #b91c1c; }
+.av-tbl .av-node .av-sub.av-good { color: var(--rk-ok, #15803d); }
+.av-cmp .av-in { white-space: pre-line; }
+.av-file-path { color: var(--rk-mute); font-size: var(--fs-tiny, 11px); margin-left: 6px; }
+/* The folders tab in the browsing tab's look: the picked file marked, the run tag small. */
+.av-dirs.rl-browse { display: flex; flex-direction: column; }
+.av-dirs .rl-file.on { background: var(--rk-hover); box-shadow: inset 3px 0 0 var(--rb-dir); }
+.av-dirs .rl-file .av-file-run { margin-left: 8px; font-size: var(--fs-tiny, 11px); color: var(--rk-mute); }
+.av-dirs .rl-file .av-file-path { margin-left: 8px; }

@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { tr } from 'lilak-ui/i18n.jsx'
-import { knownPlaces } from './api.js'
+import { knownPlaces, HIDDEN } from './api.js'
 
 /** Where a new file goes: a project of LILAK's, a folder in it, a name. Chips, not a
  *  native menu (a closed <select> eats the next click inside the portal's frame). */
 function Form({ title, preset, withTemplate, onDone }) {
-  // LILAK's own macros/ is always a place, files there or not.
-  const places = new Map([['lilak', new Set(['macros'])], ...knownPlaces()])
-  const [project, setProject] = useState(preset?.project || [...places.keys()][0] || 'lilak')
+  // The experiments' projects; LILAK's own and its shared ones (common, examples) are not offered
+  // (one a file being copied came from stays, so its copy can go beside it).
+  const places = new Map(knownPlaces())
+  const projects = [...places.keys()].filter((p) => !HIDDEN.has(p) || p === preset?.project).sort((a, b) => (b === 'scratch') - (a === 'scratch') || a.localeCompare(b))
+  const [project, setProject] = useState(preset?.project || projects[0] || '')
   const [folder, setFolder] = useState(preset?.folder || 'macros')
   const [name, setName] = useState(preset?.name || '')
   const [template, setTemplate] = useState(true)
@@ -16,19 +18,20 @@ function Form({ title, preset, withTemplate, onDone }) {
   const done = (v) => (e) => { e?.preventDefault(); onDone(v) }
   return (
     <div className="av-veil" onMouseDown={(e) => e.target === e.currentTarget && onDone(null)}>
-      <form className="av-dialog" onSubmit={done(ok ? { project, folder: folder.trim(), name: name.trim(), template: withTemplate && template } : null)}>
+      <form className="av-dialog" onSubmit={done(ok ? { root: project === 'scratch' ? 'scratch' : 'lilak', project, folder: folder.trim(), name: name.trim(), template: withTemplate && template } : null)}>
         <div className="av-row av-head"><span className="av-title">{title}</span></div>
         <label className="av-drow"><span>{tr('av_f_project')}</span>
-          <span className="av-chips">{[...places.keys()].sort().map((p) => (
+          <span className="av-chips">{projects.map((p) => (
             <button key={p} type="button" className={`rl-btn${p === project ? ' on' : ''}`} onClick={() => setProject(p)}>{p}</button>
           ))}</span>
         </label>
         <label className="av-drow"><span>{tr('av_f_folder')}</span>
-          <span className="av-chips">
-            <input className="rl-in" style={{ width: 160 }} value={folder} onChange={(e) => setFolder(e.target.value)} />
-            {[...(places.get(project) || [])].sort().filter((f) => f !== folder).slice(0, 8).map((f) => (
-              <button key={f} type="button" className="rl-btn" onClick={() => setFolder(f)}>{f}</button>
-            ))}
+          {/* A list of a fixed height (it scrolls), so another project does not resize the dialog. */}
+          <span className="av-flist">
+            <input className="rl-in" value={folder} onChange={(e) => setFolder(e.target.value)} />
+            <span className="av-flist-in">{[...(places.get(project) || [])].sort().map((f) => (
+              <button key={f} type="button" className={`av-fitem${f === folder ? ' on' : ''}`} onClick={() => setFolder(f)}>{f}</button>
+            ))}</span>
           </span>
         </label>
         <label className="av-drow"><span>{tr('av_f_name')}</span>

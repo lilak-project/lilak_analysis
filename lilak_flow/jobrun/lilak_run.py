@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A jobrun recipe's command: init or run one LILAK parameter file.
 
-    lilak_run.py <path under $LILAK_PATH> init|run <output folder>
+    lilak_run.py <path under $LILAK_PATH, or absolute under it or $LILAK_RUN_ROOTS> init|run <output folder>
 
 What `lilak run <file>` does — root on macros/run_lilak.C — in a login shell (ROOT
 and LILAK's environment are there, not in jobrun's), from the file's own folder
@@ -16,7 +16,9 @@ import sys
 from pathlib import Path
 
 LILAK_PATH = Path(os.environ.get("LILAK_PATH") or Path.home() / "Research" / "lilak").expanduser().resolve()
-SAFE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_./+-]*\.mac")
+SAFE = re.compile(r"/?[A-Za-z0-9_][A-Za-z0-9_./+-]*\.mac")
+# Folders besides LILAK a file may run from (lilak_flow's scratch), os.pathsep between them.
+RUN_ROOTS = [Path(x).expanduser().resolve() for x in os.environ.get("LILAK_RUN_ROOTS", "").split(os.pathsep) if x]
 
 
 def command(rel: str, mode: str) -> tuple:
@@ -25,8 +27,8 @@ def command(rel: str, mode: str) -> tuple:
         raise ValueError(f"mode is init or run, not {mode!r}")
     if not SAFE.fullmatch(rel) or ".." in rel:
         raise ValueError(f"not a parameter file path: {rel!r}")
-    p = (LILAK_PATH / rel).resolve()
-    if LILAK_PATH not in p.parents or not p.is_file():
+    p = (LILAK_PATH / rel).resolve()   # an absolute rel stays itself
+    if not any(b in p.parents for b in [LILAK_PATH, *RUN_ROOTS]) or not p.is_file():
         raise ValueError(f"no such file under {LILAK_PATH}: {rel}")
     call = f'{LILAK_PATH}/macros/run_lilak.C("{p}",0,{int(mode == "run")})'
     return p.parent, f"cd {shlex.quote(str(p.parent))} && root -l -b -q {shlex.quote(call)}"
@@ -47,6 +49,17 @@ def check() -> None:
         except ValueError:
             continue
         raise AssertionError(f"{bad} was let through")
+    global RUN_ROOTS
+    other = Path(tempfile.mkdtemp()).resolve()
+    (other / "b.mac").write_text("")
+    try:
+        command(str(other / "b.mac"), "run")
+        raise AssertionError("a file outside the roots ran")
+    except ValueError:
+        pass
+    RUN_ROOTS = [other]
+    assert command(str(other / "b.mac"), "init")[0] == other
+    assert command(str(LILAK_PATH / "p/a.mac"), "init")[0] == LILAK_PATH / "p"
     print("lilak_run: ok")
 
 

@@ -102,3 +102,36 @@ export const joinPath = (conds, plain) => [...conds.filter(Boolean).map((c) => `
 export const condText = (group) => splitPath(group).conds.join(' ')
 export const withConds = (group, text) => joinPath(text.split(/\s+/).filter(Boolean).map((c) => c.replace(/^\?/, '')), splitPath(group).plain)
 export const withPlain = (group, plain) => joinPath(splitPath(group).conds, plain)
+
+/** The run's classes are its `lilak/add` lines: a task is added after the last one (or at the
+ *  end), and removed by taking out its lines. Its own parameters stay in the file. */
+const isAdd = (r) => r.kind === 'parameter' && r.group === 'lilak' && r.name === 'add' && !isOff(r)
+export function addTask(rows, cls) {
+  const i = rows.findLastIndex(isAdd)
+  const at = i >= 0 ? i + 1 : rows.length
+  return [...rows.slice(0, at), { ...newPar('lilak'), name: 'add', value: cls }, ...rows.slice(at)]
+}
+export const dropTask = (rows, cls) => rows.filter((r) => !(isAdd(r) && String(r.value || '').trim() === cls))
+
+/** The guide's result on a file's rows: `set` { 'LKRun/Name': [values] } puts each name's values where its
+ *  first line was (commented out or not), switched on, the rest of its lines gone; a name the file does not
+ *  have yet goes after the group's last line. `off` [names] comments their lines out (kept, not deleted). */
+export function applyGuide(rows, set = {}, off = []) {
+  const key = (r) => r.kind === 'parameter' && `${r.group}/${r.name}`
+  let out = rows.map((r) => (off.includes(key(r)) && !isOff(r) ? { ...r, enabled: false } : r))
+  for (const [k, vs] of Object.entries(set)) {
+    const [group, name] = [k.slice(0, k.lastIndexOf('/')), k.slice(k.lastIndexOf('/') + 1)]
+    const made = vs.map((v) => ({ ...newPar(group), name, value: String(v), comment: '' }))
+    const i = out.findIndex((r) => key(r) === k)
+    if (i >= 0) {
+      const keepComment = out[i].comment || ''
+      if (made.length) made[0].comment = keepComment
+      out = [...out.slice(0, i), ...made, ...out.slice(i + 1).filter((r) => key(r) !== k)]
+    } else {
+      const last = out.map((r) => r.kind === 'parameter' && r.group === group).lastIndexOf(true)
+      const at = last >= 0 ? last + 1 : out.length
+      out = [...out.slice(0, at), ...made, ...out.slice(at)]
+    }
+  }
+  return out
+}

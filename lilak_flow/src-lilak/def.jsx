@@ -10,21 +10,48 @@ import 'racklist'            // its words (rk_tags) before this declaration read
 import { loadItems, saveItems, newFile } from './api.js'
 import { askNewFile } from './NewFile.jsx'
 import ParamEdit from './ParamEdit.jsx'
-import { useTool, toggleTool, toggleLock, useLocked } from './toolstate.js'
+import { freshGuide } from './Guide.jsx'
+import { useEffect, useState } from 'react'
+import { useTool, toggleTool, toggleLock, useLocked, toggleCompact, useCompact, useLockTries, useScope } from './toolstate.js'
 import { press } from 'racklist'
 
 /** The editor's top bar: the toolbox, as note has it, and the flow board for a file with a run. */
 function Bar({ f, ctx }) {
   const tool = useTool()
   const locked = useLocked(f.id)
+  const compact = useCompact()
+  // A try to change the locked file blinks the unlock button (each try starts it again).
+  const tries = useLockTries(f.id)
+  const [blink, setBlink] = useState(0)
+  useEffect(() => {
+    if (!tries) return undefined
+    setBlink(tries)
+    const t = setTimeout(() => setBlink(0), 650)   // one turn of the light (flowmap.css av-blink)
+    return () => clearTimeout(t)
+  }, [tries])
+  const onBoard = (ctx?.tab?.id ?? ctx?.tab) === `flow:${f.id}`   // ctx.tab: the tab in sight
+  // The guide for what the editor shows: the Input or Output File card picked on the board, else the
+  // whole run (run → input → output).
+  const scope = useScope(f.id)
+  const which = scope?.file?.role || 'run'
   return (
     <>
-      <button type="button" className={`rl-btn${locked ? ' on' : ''}`} aria-pressed={locked} title={tr(locked ? 'av_unlock_hint' : 'av_lock_hint')}
-        {...press(() => toggleLock(f.id))}>{tr(locked ? 'av_unlock' : 'av_lock')}</button>
       <button type="button" className={`rl-btn${tool ? ' on' : ''}`} aria-expanded={!!tool} title={tr('av_toolbox_hint')}
         {...press(toggleTool)}>{tr('av_toolbox')}</button>
+      <button key={blink} type="button" className={`rl-btn${locked ? ' on' : ''}${blink ? ' av-blink' : ''}`} aria-pressed={locked} title={tr(locked ? 'av_unlock_hint' : 'av_lock_hint')}
+        {...press(() => toggleLock(f.id))}>{tr(locked ? 'av_unlock' : 'av_lock')}</button>
+      <button type="button" className={`rl-btn${compact ? ' on' : ''}`} aria-pressed={compact} title={tr(compact ? 'av_full_hint' : 'av_compact_hint')}
+        {...press(toggleCompact)}>{tr(compact ? 'av_full' : 'av_compact')}</button>
+      {f.flow && ctx?.openEdit ? (
+        <button type="button" className="rl-btn av-guide-btn" title={tr(`av_g_hint_${which}`)}
+          onClick={() => { freshGuide(which, f.id); ctx.openEdit({ id: `guide:${which}:${f.id}`, kind: 'guide', who: `${which}|${f.id}`, label: `${tr('av_g_tab')} · ${tr(`av_g_card_${which}`)}` }) }}>
+          {tr('av_act_guide')}{which !== 'run' ? ` · ${tr(`av_g_card_${which}`)}` : ''}
+        </button>
+      ) : null}
       {f.flow && ctx?.openTab ? (
-        <button type="button" className="rl-btn" onClick={() => ctx.openTab({ id: `flow:${f.id}`, kind: 'view', view: 'flow', who: f.id, label: f.name })}>
+        // At the right end (after the kit's spacer: order), off while this file's flow is the tab in sight.
+        <button type="button" className="rl-btn" style={{ order: 1 }} disabled={onBoard}
+          onClick={() => ctx.openTab({ id: `flow:${f.id}`, kind: 'view', view: 'flow', who: f.id, label: f.name })}>
           {tr('av_open_board')}
         </button>
       ) : null}
@@ -38,7 +65,8 @@ export default {
   source: { load: loadItems, save: saveItems },
   trash: false,
   item: {
-    key: 'flows', noun: tr('av_noun'), allLabel: tr('av_tab_home'), tabId: 'home', label: 'name',
+    // No home tab: the folders tab lists the files (by folder, or all of them).
+    key: 'flows', noun: tr('av_noun'), allLabel: tr('av_tab_home'), tabId: 'home', listTab: false, label: 'name',
     order: { k: 'updated', dir: -1 },
     actions: bar,
     lock: () => true,      // a file is not deleted from here: the list would only find it again
@@ -48,7 +76,8 @@ export default {
       const where = await askNewFile({ title: tr('av_new_title'), withTemplate: true })
       if (!where) return null
       const made = await newFile(where)
-      return { id: made.id, label: made.name }
+      // Both starts (LKRun's template, a few lines) hold a run: its flow board opens beside its editor.
+      return { id: made.id, label: made.name, tab: { id: `flow:${made.id}`, kind: 'view', view: 'flow', who: made.id, label: made.name } }
     },
     fields: [
       { k: 'name', label: tr('av_f_name'), type: 'text', edit: false, col: { w: 220, min: 120 }, tone: 'ink' },

@@ -15,12 +15,14 @@ export default defineConfig({
       // env-overridable (build-all sets LILAK_UI_PATH); default = the stack's checkout.
       // The rack frame is lilak_rack's, shared with the manager bundle.
       racklist: resolve(__dirname, '../../lilak_rack/racklist'),
+      // note's CodeMirror editor (its packages come from note's node_modules).
+      '@note': resolve(__dirname, '../../lilak_rack/note/src-lilak'),
       'lilak-ui': resolve(process.env.LILAK_UI_PATH || resolve(__dirname, '../../lilak_ui'), 'src'),
     },
   },
   server: {
     fs: {
-      allow: [resolve(__dirname), resolve(__dirname, '../../lilak_rack/racklist'), resolve(__dirname, '../../lilak_ui')],
+      allow: [resolve(__dirname), resolve(__dirname, '../../lilak_rack/racklist'), resolve(__dirname, '../../lilak_rack/note'), resolve(__dirname, '../../lilak_ui')],
     },
   },
   optimizeDeps: {

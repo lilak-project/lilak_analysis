@@ -59,3 +59,25 @@ console.log('rows: ok')
   assert.equal(condText('?!run_type/run_type'), '!run_type')
   console.log('?!: ok')
 }
+{
+  const { addTask, dropTask, newPar } = await import('./rows.js')
+  const add = (v, extra = {}) => ({ ...newPar('lilak'), name: 'add', value: v, ...extra })
+  const rs = [add('Det'), add('A'), { ...newPar('A'), name: 'x' }, add('Old', { enabled: false })]
+  assert.deepEqual(addTask(rs, 'B').map((r) => r.value || r.name), ['Det', 'A', 'B', 'x', 'Old'], 'after the last live add')
+  assert.deepEqual(addTask([{ ...newPar('G'), name: 'y' }], 'B').map((r) => r.value || r.name), ['y', 'B'], 'no add: at the end')
+  assert.deepEqual(dropTask(rs, 'A').map((r) => r.value || r.name), ['Det', 'x', 'Old'], 'its lines go, its parameters stay')
+  assert.equal(dropTask(rs, 'Old').length, 4, 'a commented-out add is not the task')
+  console.log('tasks: ok')
+}
+
+// The guide's change: set in place (a commented-out line too), several values, a new name after its group, off kept.
+{
+  const { applyGuide } = await import('./rows.js')
+  const P = (group, name, value, extra = {}) => ({ kind: 'parameter', group, name, value, unit: '', comment: '', enabled: true, ...extra })
+  const rows = [P('LKRun', 'Name', 'run'), P('LKRun', 'InputPath', '/a', { enabled: false }), P('LKRun', 'InputPath', '/b'), P('LKRun', 'InputFile', 'x.root'), P('lilak', 'run', '0')]
+  const got = applyGuide(rows, { 'LKRun/Name': ['atomx'], 'LKRun/InputPath': ['/c', '/d'], 'LKRun/SearchRun': ['mfm'] }, ['LKRun/InputFile'])
+  assert.deepEqual(got.map((r) => [r.group, r.name, r.value, r.enabled]), [
+    ['LKRun', 'Name', 'atomx', true], ['LKRun', 'InputPath', '/c', true], ['LKRun', 'InputPath', '/d', true],
+    ['LKRun', 'InputFile', 'x.root', false], ['LKRun', 'SearchRun', 'mfm', true], ['lilak', 'run', '0', true]])
+  console.log('guide: ok')
+}
